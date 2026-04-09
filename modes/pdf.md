@@ -17,13 +17,14 @@ Only run this mode for a closed or low-fit role if the user explicitly asks for 
 
 ## Goal
 
-Produce a tailored resume package through one repeatable path:
+Produce a tailored application package through one repeatable path:
 
 1. Read canonical source data from `cv.md`, `config/profile.yml`, and optionally `article-digest.md`
 2. Create a structured tailored brief in `output/`
 3. Render HTML from `templates/cv-template.html` with `build-tailored-cv.mjs`
 4. Generate the PDF with `generate-pdf.mjs`
-5. Update tracker PDF status only if the role is already registered
+5. For strong, application-worthy roles, also create a tailored cover letter JSON/HTML/PDF package
+6. Update tracker PDF status only if the role is already registered
 
 The AI should tailor the content. The script should assemble the HTML. Do not hand-build raw HTML unless the renderer itself is broken.
 
@@ -57,6 +58,15 @@ node build-tailored-cv.mjs output/cv-{candidate}-{company}-{YYYY-MM-DD}.brief.js
    - PDF path
    - page count
    - keyword coverage
+14. If the role is worth pursuing, also generate a cover letter package:
+
+```bash
+node build-cover-letter.mjs output/cover-letter-{candidate}-{company}-{YYYY-MM-DD}.json --html output/cover-letter-{candidate}-{company}-{YYYY-MM-DD}.html --pdf output/cover-letter-{candidate}-{company}-{YYYY-MM-DD}.pdf --format={letter|a4}
+```
+
+15. Report:
+   - cover letter HTML path
+   - cover letter PDF path
 
 If this mode is skipped by the gating rule above, do not create the brief, HTML, or PDF artifacts.
 
@@ -131,6 +141,18 @@ It should:
 - optionally call `generate-pdf.mjs`
 
 This keeps the generation path repeatable without changing the existing template, PDF generator, or tracker flow.
+
+## Shared cover-letter renderer
+
+`build-cover-letter.mjs` is the standard cover-letter renderer for this mode.
+
+It should:
+- read shared candidate data from `config/profile.yml`
+- read a structured cover letter JSON from `output/`
+- write the HTML artifact
+- optionally call `generate-pdf.mjs`
+
+This keeps cover letter generation repeatable for strong roles instead of manually crafting one-off files.
 
 ## Optional Canva path
 

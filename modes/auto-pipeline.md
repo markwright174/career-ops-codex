@@ -40,7 +40,29 @@ When resume artifacts are generated, the standard path is:
 
 Do not hand-assemble resume HTML if the shared renderer is available.
 
-## Step 4 -- Draft Application Answers (only if score >= 4.5)
+## Step 4 -- Generate Cover Letter Artifacts
+
+When a role is worth pursuing and resume artifacts were generated, also generate a tailored cover letter package unless the application clearly does not need one.
+
+Standard path:
+
+1. Create a structured cover letter JSON in `output/`
+2. Render HTML through `build-cover-letter.mjs`
+3. Generate the PDF through `generate-pdf.mjs` via the cover-letter renderer
+
+Default rule:
+
+- **Score >= 4.0/5 and role is application-worthy** -> generate cover letter package
+- **Closed role** -> skip
+- **Score below 4.0/5** -> skip
+
+Use output names:
+
+- `output/cover-letter-{candidate}-{company}-{YYYY-MM-DD}.json`
+- `output/cover-letter-{candidate}-{company}-{YYYY-MM-DD}.html`
+- `output/cover-letter-{candidate}-{company}-{YYYY-MM-DD}.pdf`
+
+## Step 5 -- Draft Application Answers (only if score >= 4.5)
 
 If the final score is >= 4.5, generate draft answers for the application form:
 
@@ -76,7 +98,7 @@ If the final score is >= 4.5, generate draft answers for the application form:
 
 **Language:** Always generate in the language of the JD (EN default). Apply `/tech-translate` as needed.
 
-## Step 5 -- Update Tracker
+## Step 6 -- Update Tracker
 
 Register the role in `data/applications.md` after every evaluation.
 
