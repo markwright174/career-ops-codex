@@ -15,7 +15,7 @@
  * The AI still creates the tailored brief content, but no longer needs to hand-assemble raw HTML.
  */
 
-import { readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { basename, dirname, join, parse, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
@@ -23,6 +23,7 @@ import { spawnSync } from 'child_process';
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = join(ROOT, 'templates', 'cv-template.html');
 const CV_PATH = join(ROOT, 'cv.md');
+const ARTICLE_DIGEST_PATH = join(ROOT, 'article-digest.md');
 const PROFILE_PATH = join(ROOT, 'config', 'profile.yml');
 const PDF_SCRIPT_PATH = join(ROOT, 'generate-pdf.mjs');
 
@@ -233,6 +234,41 @@ function escapeHtml(text) {
     .replace(/'/g, '&#39;');
 }
 
+function normalizeForMatch(text) {
+  return String(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function singularizeToken(token) {
+  if (token.endsWith('ies') && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (token.endsWith('s') && token.length > 3 && !token.endsWith('ss')) return token.slice(0, -1);
+  return token;
+}
+
+function isClearlySupportedCompetency(label, sourceText) {
+  const normalizedLabel = normalizeForMatch(label);
+  if (!normalizedLabel) return false;
+
+  if (sourceText.includes(normalizedLabel)) return true;
+
+  const stopwords = new Set(['and', 'the', 'for', 'with', 'of', 'to']);
+  const tokens = normalizedLabel
+    .split(' ')
+    .map((token) => singularizeToken(token))
+    .filter((token) => token.length > 3 && !stopwords.has(token));
+
+  if (tokens.length === 0) return false;
+  return tokens.every((token) => sourceText.includes(token));
+}
+
+function filterSupportedCompetencies(items, sourceText) {
+  if (!Array.isArray(items)) return [];
+  return items.filter((item) => isClearlySupportedCompetency(item, sourceText));
+}
+
 function slugToDisplay(url) {
   return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
@@ -359,7 +395,10 @@ function main() {
   const briefPath = resolve(args.briefPath);
   const brief = JSON.parse(readFileSync(briefPath, 'utf-8'));
   const template = readFileSync(TEMPLATE_PATH, 'utf-8');
-  const cv = parseCv(readFileSync(CV_PATH, 'utf-8'));
+  const cvContent = readFileSync(CV_PATH, 'utf-8');
+  const articleDigestContent = existsSync(ARTICLE_DIGEST_PATH) ? readFileSync(ARTICLE_DIGEST_PATH, 'utf-8') : '';
+  const sourceText = normalizeForMatch(`${cvContent}\n${articleDigestContent}`);
+  const cv = parseCv(cvContent);
   const profile = parseSimpleYaml(readFileSync(PROFILE_PATH, 'utf-8'));
 
   const format = (args.format || brief.format || 'a4').toLowerCase();
@@ -378,6 +417,7 @@ function main() {
 
   const candidate = profile.candidate || {};
   const experience = mergeExperience(cv.experience, brief.experience);
+  const competencies = filterSupportedCompetencies(brief.competencies || [], sourceText);
   const html = buildHtml(template, {
     LANG: escapeHtml(brief.language || 'en'),
     PAGE_WIDTH: format === 'letter' ? '8.5in' : '210mm',
@@ -389,7 +429,7 @@ function main() {
     SECTION_SUMMARY: escapeHtml(labels.summary),
     SUMMARY_TEXT: escapeHtml(brief.summary_text || cv.summary || ''),
     SECTION_COMPETENCIES: escapeHtml(labels.competencies),
-    COMPETENCIES: renderCompetencies(brief.competencies || []),
+    COMPETENCIES: renderCompetencies(competencies),
     SECTION_EXPERIENCE: escapeHtml(labels.experience),
     EXPERIENCE: renderExperience(experience),
     SECTION_PROJECTS: escapeHtml(labels.projects),
@@ -410,6 +450,7 @@ function main() {
     html: htmlPath,
     pdf: pdfPath,
     format,
+    competencies_retained: competencies,
     keyword_coverage: coverage,
   };
 

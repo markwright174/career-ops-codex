@@ -87,3 +87,21 @@ This file accumulates your best interview stories over time. Each evaluation (Bl
 **R (Result):** Built a broader leadership story that goes beyond curriculum design alone.
 **Reflection:** This is useful when I need to show business context and leadership judgment, not only learning expertise.
 **Best for questions about:** strategic planning, business acumen, leadership, staff development
+
+### [Documentation Systems] Internal Training Website and Support Resources
+**Source:** Report #002 - Vertex Pharmaceuticals - Senior Manager, GxP Strategic Document Partner (Contract)
+**S (Situation):** Faculty, staff, and students needed clearer guidance and support materials for teaching and learning systems.
+**T (Task):** Create and maintain a central place for usable training guidance and support resources.
+**A (Action):** Built and maintained an internal training website and related support resources, with full ownership of development and upkeep.
+**R (Result):** Centralized support content and made teaching and learning guidance easier to access and use.
+**Reflection:** This is my best adjacent story for documentation usability and support architecture, especially when I need to show structured resource design rather than only facilitation.
+**Best for questions about:** documentation support, content usability, support resources, information architecture
+
+### [Tool Evaluation] Educational Technology Assessment and Recommendation
+**Source:** Report #002 - Vertex Pharmaceuticals - Senior Manager, GxP Strategic Document Partner (Contract)
+**S (Situation):** The learning environment needed better-fit tools to support online delivery and accessibility.
+**T (Task):** Evaluate options and help inform decisions about which tools best supported delivery needs.
+**A (Action):** Assessed accessibility LTIs, exam-build software, and alternative LMS options, then used that analysis to inform campus delivery decisions.
+**R (Result):** Helped stakeholders make more informed decisions about the tools used to support teaching and learning.
+**Reflection:** This is useful when I need to show structured needs analysis and recommendation work, even when I do not own the final platform decision.
+**Best for questions about:** needs analysis, tool evaluation, stakeholder consultation, process improvement

@@ -2,6 +2,19 @@
 
 Use this mode when the user explicitly asks for resume/PDF generation, or when `auto-pipeline` reaches the resume step.
 
+## Default gating
+
+In `auto-pipeline`, do **not** generate resume artifacts by default when:
+
+- the role is verified closed, or
+- the score is below `4.0/5`
+
+In those cases, the default output is:
+- full evaluation report
+- tracker update with the correct canonical status
+
+Only run this mode for a closed or low-fit role if the user explicitly asks for resume artifacts anyway.
+
 ## Goal
 
 Produce a tailored resume package through one repeatable path:
@@ -44,6 +57,8 @@ node build-tailored-cv.mjs output/cv-{candidate}-{company}-{YYYY-MM-DD}.brief.js
    - PDF path
    - page count
    - keyword coverage
+
+If this mode is skipped by the gating rule above, do not create the brief, HTML, or PDF artifacts.
 
 ## Tailored brief contract
 
@@ -102,6 +117,7 @@ Suggested shape:
 - Keep the base chronology intact
 - Use the JD language for the generated output, with English as the default
 - Preserve German and French support through `modes/de/` and `modes/fr/`; do not fork a separate English workflow
+- Competency labels must be clearly supported by source files; if support is weak, omit the label rather than infer it
 
 ## Shared renderer
 

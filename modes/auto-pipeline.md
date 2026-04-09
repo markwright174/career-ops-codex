@@ -24,11 +24,15 @@ Run exactly the same evaluation flow as `oferta` mode (read `modes/oferta.md` fo
 
 Save the full evaluation in `reports/{###}-{company-slug}-{YYYY-MM-DD}.md` (see format in `modes/oferta.md`).
 
-## Step 3 -- Generate PDF
+## Step 3 -- Generate Tailored Resume Artifacts
 
-Run the full `pdf` pipeline (read `modes/pdf.md`).
+Run the full `pdf` pipeline (read `modes/pdf.md`) only when the role is worth pursuing:
 
-The standard path is:
+- **Verified closed role** -> stop after report + tracker
+- **Score below 4.0/5** -> stop after report + tracker
+- **User explicitly asks for resume artifacts anyway** -> run the full `pdf` pipeline as an override
+
+When resume artifacts are generated, the standard path is:
 
 1. Create a structured tailored brief in `output/{cv-file}.brief.json`
 2. Render the tailored HTML through `build-tailored-cv.mjs`
@@ -74,6 +78,11 @@ If the final score is >= 4.5, generate draft answers for the application form:
 
 ## Step 5 -- Update Tracker
 
-Register the role in `data/applications.md` with all columns including Report and PDF as `✅`.
+Register the role in `data/applications.md` after every evaluation.
+
+- **Closed role** -> status `Discarded`
+- **Active but below apply threshold (< 4.0/5)** -> status `SKIP`
+- **Worth pursuing** -> status `Evaluated` unless the user asks for a different canonical state
+- Set PDF to `✅` only when HTML/PDF artifacts were actually generated; otherwise leave it `❌`
 
 **If any step fails**, continue with the next steps and mark the failed step as pending in the tracker.
