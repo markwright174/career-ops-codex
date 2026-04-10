@@ -338,11 +338,10 @@ function renderSkills(items) {
 function mergeExperience(baseEntries, overrides) {
   if (!Array.isArray(overrides) || overrides.length === 0) return baseEntries;
 
-  const baseByKey = new Map(baseEntries.map((entry) => [`${entry.company}::${entry.role}`, entry]));
-  return overrides.map((override) => {
-    const key = `${override.company}::${override.role}`;
-    const base = baseByKey.get(key);
-    if (!base) return override;
+  const overrideByKey = new Map(overrides.map((entry) => [`${entry.company}::${entry.role}`, entry]));
+  const merged = baseEntries.map((base) => {
+    const override = overrideByKey.get(`${base.company}::${base.role}`);
+    if (!override) return base;
     return {
       role: override.role || base.role,
       company: override.company || base.company,
@@ -350,6 +349,12 @@ function mergeExperience(baseEntries, overrides) {
       bullets: override.bullets || base.bullets,
     };
   });
+
+  // Preserve base CV chronology by default, but append any brief-only entries
+  // so the builder can still render intentional additions when needed.
+  const baseKeys = new Set(baseEntries.map((entry) => `${entry.company}::${entry.role}`));
+  const extraEntries = overrides.filter((entry) => !baseKeys.has(`${entry.company}::${entry.role}`));
+  return merged.concat(extraEntries);
 }
 
 function inferOutputPath(briefPath, explicitPath, extension) {
