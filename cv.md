@@ -20,6 +20,11 @@ University of Houston, 1996
 - QM Peer Reviewer, Quality Matters, 2021
 - Digital Accessibility, Texas Distance Learning Association, 2019
 
+## Tools and Platforms
+
+- Authoring and creative tools: Articulate Storyline, Articulate Rise, Adobe Creative Cloud
+- Learning platforms and systems: D2L Brightspace, Blackboard, Canvas, Codio
+
 ## Professional Experience
 
 ### Instructional Design Manager  
