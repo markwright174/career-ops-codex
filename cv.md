@@ -3,10 +3,9 @@
 Houston, TX  
 (832) 605-5223  
 dntpanic.tpc@gmail.com  
-https://www.linkedin.com/in/marklwright1/
+https://www.linkedin.com/in/marklwright1
 
-Instructional design and learning leader with experience leading curriculum development, faculty and educator enablement, LMS-supported learning environments, and cross-functional program delivery across higher education and workforce learning settings. Known for translating complex content into clear learning experiences, guiding teams through change, and building practical programs and systems that strengthen teaching, learning, and organizational capability.
-
+Senior learning and instructional design leader specializing in curriculum development, e-learning, accessibility, and LMS-supported program delivery across higher education and workforce learning. Lead 4-6 programs, oversee roughly 20 courses per program, and manage an Agile team of 4-6 instructional designers, with hands-on experience in Articulate, D2L, Blackboard, Canvas, Codio, assessment design, and AI-supported learning workflows.
 ## Education
 
 **Master’s in Educational Technology**  
@@ -28,53 +27,52 @@ University of Houston, 1996
 ## Professional Experience
 
 ### Instructional Design Manager  
-**Texas State Technical College** | Nov 2021 – Present
+**Texas State Technical College** | 2021 – Present
 
-- Lead instructional design strategy and execution for 4-6 programs delivered across online, face-to-face, and hybrid environments, with roughly 20 courses per program.
-- Direct an Agile team of 4-6 instructional designers and coordinate collaborative course development with faculty and students across the institution.
-- Lead program and project management for the transition to Proficiency-Based Education, guiding curriculum deconstruction, competency alignment, and implementation planning across 6 programs, with 3 completed and 3 in development.
-- Partner on curriculum design, assessment, and measurement to advance competencies, learning objectives, and training goals across programs.
+- Lead instructional design strategy and execution across 4-6 programs and roughly 20 courses per program in online, face-to-face, and hybrid environments.
+- Manage an Agile team of 4-6 instructional designers and coordinate collaborative course development with faculty and students.
+- Direct the Proficiency-Based Education transition across 6 programs, with 3 completed and 3 in development, including curriculum deconstruction, competency alignment, and implementation planning.
+- Partner on curriculum design, assessment, and measurement to support learning objectives and training goals.
 
 ### Instructional Designer II  
-**Lone Star College** | March 2021 – Nov 2021
+**Lone Star College** | 2021 – 2021
 
 - Supported D2L Brightspace across the full campus and led faculty training in instructional design, online pedagogy, and educational technology.
-- Expanded online-learning support through LMS guidance and faculty enablement, helping dozens of faculty deliver more consistent digital learning experiences.
-- Led evaluation of educational technology tools, including accessibility LTIs, exam-build software, and alternative LMS options, to inform campus delivery decisions.
+- Expanded online-learning support through LMS guidance and faculty enablement for dozens of faculty.
+- Led evaluation of educational technology tools, including accessibility LTIs, exam-build software, and alternative LMS options, to inform delivery decisions.
 - Developed curriculum and facilitated a faculty training program that advanced online teaching practice and digital-learning adoption.
 
 ### Contract Instructional Technologist  
-**UTeach Computer Science** | May 2020 – May 2021
+**UTeach Computer Science** | 2020 – 2021
 
 - Led strategy, consulting, and implementation for a 6-month migration of the full UTeach Computer Science platform from Canvas to Codio.
-- Audited and updated the full program to advance accessibility and universal design for computer science educators.
-- Provided learner experience design consultation that increased usability and engagement across the platform.
+- Audited and updated the full program to advance accessibility and universal design.
+- Provided learner experience design consultation to improve usability and engagement across the platform.
 
 ### Senior Instructional Designer  
-**Texas Southern University** | June 2018 – Feb 2021
+**Texas Southern University** | 2018 – 2021
 
-- Administered and supported a Blackboard environment serving roughly 5,000 users, sustaining day-to-day online learning operations for faculty and students.
+- Administered and supported a Blackboard environment serving roughly 5,000 users, sustaining day-to-day online learning operations.
 - Developed and launched a self-paced online teaching certification program adopted by almost all instructors, personally managing about 20 completions.
-- Redesigned the Blackboard user interface to streamline navigation, improve usability, and increase student and faculty interaction.
-- Built and maintained an internal training website and support resources for students, faculty, and staff, with full ownership of development and upkeep.
-- Supported Blackboard Communities as a large-scale communication channel connecting students and the local community.
+- Redesigned the Blackboard user interface to streamline navigation and improve usability.
+- Built and maintained an internal training website and support resources for students, faculty, and staff.
 
 ### Education Specialist  
-**NASA Johnson Space Center (JSC)** | Nov 2015 – May 2018
+**NASA Johnson Space Center (JSC)** | 2015 – 2018
 
 - Managed the Texas Aerospace Scholars program.
-- Led and developed a team of about 10 educators, aligning instruction and delivery with program goals.
+- Led and developed a team of about 10 educators, aligning instruction and delivery with program goals. 
 - Supported a statewide program serving hundreds of Texas high school students each year.
 - Created multimedia learning content, including HTML and video, for learner engagement and program communication.
-- Represented JSC STEM Engagement at 2-3 conferences, events, or partnership activities per year, extending program visibility and external relationships.
+- Represented JSC STEM Engagement at 2-3 conferences, events, or partnership activities per year.
 
 ### Director  
-**Alight Education Services** | May 2011 – Oct 2015
+**Alight Education Services** | 2011 – 2015
 
-- Provided operational leadership, strategic planning, and service delivery for an education services business, balancing day-to-day execution with growth priorities.
-- Managed P&L and budgeting for a small business while building relationships with about 10 schools, clients, and partners.
+- Provided operational leadership, strategic planning, and service delivery for an education services business.
+- Managed P&L and budgeting while building relationships with about 10 schools, clients, and partners.
 - Recruited and developed a team of 6-12 staff to advance service quality and business growth.
-- Contributed to 10% year-over-year business growth through operational leadership, client relationship management, and service delivery.
+- Contributed to 10% year-over-year business growth through operational leadership and client relationship management.
 - Developed and implemented CRM and social network marketing strategies that supported business growth and improved client satisfaction.
 
 ## Missing Metrics to Collect
