@@ -5,7 +5,7 @@ Houston, TX
 dntpanic.tpc@gmail.com  
 https://www.linkedin.com/in/marklwright1
 
-Senior learning and instructional design leader specializing in curriculum development, e-learning, accessibility, and LMS-supported program delivery across higher education and workforce learning. Lead 4-6 programs, oversee roughly 20 courses per program, and manage an Agile team of 4-6 instructional designers, with hands-on experience in Articulate, D2L, Blackboard, Canvas, Codio, assessment design, and AI-supported learning workflows.
+Senior learning and instructional design leader specializing in curriculum development, e-learning, accessibility, and LMS-supported program delivery across higher education, workforce learning, and healthcare education. Lead 4-6 programs, oversee roughly 20 courses per program, and manage an Agile team of 4-6 instructional designers, with hands-on experience in Articulate, Adobe Captivate, D2L, Blackboard, Canvas, Codio, assessment design, and AI-supported learning workflows.
 ## Education
 
 **Master’s in Educational Technology**  
@@ -21,7 +21,7 @@ University of Houston, 1996
 
 ## Tools and Platforms
 
-- Authoring and creative tools: Articulate Storyline, Articulate Rise, Adobe Creative Cloud
+- Authoring and creative tools: Articulate Storyline, Articulate Rise, Adobe Captivate, Adobe Creative Cloud
 - Learning platforms and systems: D2L Brightspace, Blackboard, Canvas, Codio
 
 ## Professional Experience
