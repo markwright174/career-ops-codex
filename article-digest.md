@@ -17,6 +17,15 @@ Facilitation / enablement evidence:
 - Has introduced or supported AI-tool use with his own staff.
 - Has included AI-tool guidance in faculty training contexts.
 
+## Healthcare Education Domain
+
+- In the current role, Mark manages curriculum design, development, and maintenance across the full development cycle for nursing programs, including LVN, ADN, and BSN pathways.
+- This work provides direct familiarity with healthcare education expectations, regulated instructional environments, and the operational realities of program maintenance across complex learning tracks.
+
+## Confirmed Tool Additions
+
+- Intermediate experience with Adobe Captivate.
+
 Evidence boundaries:
 - Do not overstate this as formal enterprise AI enablement ownership.
 - Do not claim legal AI, cloud-security AI, or dedicated AI-product training unless confirmed later.
