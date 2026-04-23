@@ -9,24 +9,24 @@ If the input is a **URL** (not pasted JD text), use this extraction strategy:
 **Priority order:**
 
 1. **Playwright (preferred):** Most job portals (Lever, Ashby, Greenhouse, Workday) are SPAs. Use `browser_navigate` + `browser_snapshot` to render and read the JD.
-2. **WebFetch (fallback):** For static pages (ZipRecruiter, WeLoveProduct, company career pages).
+2. **WebFetch (fallback):** For static pages (ZipRecruiter, company career pages that render server-side).
 3. **WebSearch (last resort):** Search for the role title + company on secondary portals that index the JD as static HTML.
 
 **If none of these work:** Ask the candidate to paste the JD manually or share a screenshot.
 
 **If the input is JD text** (not a URL): use it directly with no fetch step.
 
-## Step 1 -- A-F Evaluation
+## Step 1 -- A-G Evaluation
 
-Run exactly the same evaluation flow as `oferta` mode (read `modes/oferta.md` for all A-F blocks).
+Run exactly the same evaluation flow as `oferta` mode, including Block G `Posting Legitimacy`.
 
 ## Step 2 -- Save Report .md
 
-Save the full evaluation in `reports/{###}-{company-slug}-{YYYY-MM-DD}.md` (see format in `modes/oferta.md`).
+Save the full evaluation in `reports/{###}-{company-slug}-{YYYY-MM-DD}.md` using the format defined in `modes/oferta.md`.
 
 ## Step 3 -- Generate Tailored Resume Artifacts
 
-Run the full `pdf` pipeline (read `modes/pdf.md`) only when the role is worth pursuing:
+Run the full `pdf` pipeline only when the role is worth pursuing:
 
 - **Verified closed role** -> stop after report + tracker
 - **Score below 4.0/5** -> stop after report + tracker
@@ -68,7 +68,7 @@ If the final score is >= 4.5, generate draft answers for the application form:
 
 1. **Extract form questions:** Use Playwright to navigate to the form and snapshot it. If they cannot be extracted, use the generic questions.
 2. **Generate answers** using the tone rules below.
-3. **Save them in the report** as section `## G) Draft Application Answers`.
+3. **Save them in the report** as section `## H) Draft Application Answers`.
 
 ### Generic questions (use if the form questions cannot be extracted)
 
@@ -83,20 +83,12 @@ If the final score is >= 4.5, generate draft answers for the application form:
 **Positioning: "I'm choosing you."** The candidate has options and is choosing this company for specific reasons.
 
 **Tone rules:**
-- **Confident without arrogance:** "I've spent the past year building production AI agent systems - your role is where I want to apply that experience next"
-- **Selective without ego:** "I've been intentional about finding a team where I can contribute meaningfully from day one"
-- **Specific and concrete:** Always reference something real from the JD or the company, and something real from the candidate's experience
-- **Direct, no fluff:** 2-4 sentences per answer. No "I'm passionate about..." or "I would love the opportunity to..."
-- **Lead with proof, not claims:** Instead of "I'm great at X", say "I built X that does Y"
+- **Confident without arrogance:** "I've been intentional about finding a team where I can contribute meaningfully from day one."
+- **Specific and concrete:** Reference something real from the JD or company, and something real from the candidate's experience.
+- **Direct, no fluff:** 2-4 sentences per answer.
+- **Lead with proof, not claims:** Prefer "I built X that did Y" over "I'm great at X."
 
-**Question frameworks:**
-- **Why this role?** -> "Your [specific thing] maps directly to [specific thing I built]."
-- **Why this company?** -> Mention something concrete about the company. "I've been using [product] for [time/purpose]."
-- **Relevant experience?** -> A quantified proof point. "Built [X] that [metric]. Sold the company in 2025."
-- **Good fit?** -> "I sit at the intersection of [A] and [B], which is exactly where this role lives."
-- **How did you hear?** -> Be honest: "Found through [portal/scan], evaluated against my criteria, and it scored highest."
-
-**Language:** Always generate in the language of the JD (EN default). Apply `/tech-translate` as needed.
+**Language:** Always generate in the language of the JD, with English as the default.
 
 ## Step 6 -- Update Tracker
 

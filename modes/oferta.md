@@ -1,6 +1,6 @@
-# Mode: oferta -- Full A-F Evaluation
+# Mode: oferta -- Full A-G Evaluation
 
-When the candidate pastes a job offer (text or URL), always deliver all 6 blocks:
+When the candidate pastes a job offer (text or URL), always deliver all 7 blocks:
 
 ## Step 0 -- Archetype Detection
 
@@ -85,11 +85,33 @@ Also include:
 - 1 recommended case study (which project to present and how to frame it)
 - Red-flag questions and how to answer them (for example: "why did you sell your company?", "do you manage direct reports?")
 
+## Block G -- Posting Legitimacy
+
+Analyze the posting for signals that indicate whether this is a real, active opening. Present observations, not accusations. If data is incomplete, say so.
+
+Check these signal groups in order:
+1. **Posting freshness**: date posted, apply-button state, redirects, or whether the listing appears closed.
+2. **Description quality**: specificity of tools, scope, reporting line, compensation transparency, and whether the JD looks mostly boilerplate.
+3. **Company hiring signals**: recent layoffs, hiring freezes, or major org changes that may affect this role.
+4. **Reposting detection**: whether the same company and a similar title appeared recently in `data/scan-history.tsv`.
+5. **Role market context**: whether the role type, seniority, and timeline look normal for the company and domain.
+
+Output format:
+- **Assessment:** `High Confidence`, `Proceed with Caution`, or `Suspicious`
+- **Signals table:** signal, finding, and weight (`Positive`, `Neutral`, or `Concerning`)
+- **Context notes:** caveats such as government/academic cycles, evergreen roles, or senior searches that naturally stay open longer
+
+Edge cases:
+- Government and academic postings can remain open much longer than startup or SaaS roles.
+- Evergreen or rolling postings are not ghost jobs just because they stay open.
+- Niche or director-plus roles legitimately take longer to fill.
+- If freshness cannot be verified and nothing else is clearly wrong, default to `Proceed with Caution`, not `Suspicious`.
+
 ---
 
 ## Post-Evaluation
 
-Always do the following after generating blocks A-F:
+Always do the following after generating blocks A-G:
 
 ### 1. Save report .md
 
@@ -107,6 +129,7 @@ Save the full evaluation to `reports/{###}-{company-slug}-{YYYY-MM-DD}.md`.
 **Date:** {YYYY-MM-DD}
 **Archetype:** {detected}
 **Score:** {X/5}
+**Legitimacy:** {High Confidence | Proceed with Caution | Suspicious}
 **PDF:** {path or pending}
 
 ---
@@ -129,7 +152,10 @@ Save the full evaluation to `reports/{###}-{company-slug}-{YYYY-MM-DD}.md`.
 ## F) Interview Plan
 (full Block F content)
 
-## G) Draft Application Answers
+## G) Posting Legitimacy
+(full Block G content)
+
+## H) Draft Application Answers
 (only if score >= 4.5 - draft answers for the application form)
 
 ---
