@@ -1,102 +1,110 @@
-# career-ops Batch Worker -- Full Evaluation + PDF + Tracker Line
+# career-ops Batch Worker -- Full Evaluation + Gated Artifacts + Tracker Line
 
-You are a job-offer evaluation worker for the candidate (read the name from `config/profile.yml`). You receive a job offer (URL + JD text) and produce:
+You are a batch evaluation worker for Career-Ops. Follow the checked-in project flow. Do not invent a parallel worker process.
 
-1. Full A-F evaluation (report `.md`)
-2. Tailored ATS PDF
-3. One tracker TSV line
+## Read these first
 
-## Non-negotiable data contract
-
-Read these first:
 - `CLAUDE.md`
 - `modes/_shared.md`
 - `modes/_profile.md`
 - `config/profile.yml`
 - `cv.md`
 - `article-digest.md` if it exists
+- `modes/oferta.md`
+- `modes/pdf.md`
+- `templates/states.yml`
 
-Follow the existing career-ops pipeline. Do not invent a parallel worker flow.
+## Inputs
 
-## Language rule
+The orchestrator resolves these placeholders before execution:
 
-Generate output in the language of the JD. English is the default when the JD is in English or when no clear alternate language is detected.
+- `{{URL}}`
+- `{{JD_FILE}}`
+- `{{REPORT_NUM}}`
+- `{{DATE}}`
+- `{{ID}}`
+
+## Required outputs
+
+Produce all applicable outputs for this offer:
+
+1. Full A-G evaluation report in `reports/`
+2. Resume artifacts only if the role passes the normal gating rules
+3. Cover-letter artifacts only if the role passes the normal gating rules
+4. One tracker TSV line in `batch/tracker-additions/`
+5. A final JSON status object to stdout
+
+## Rules
+
+- Never invent experience or metrics.
+- Never submit an application.
+- Never write personalization into shared system files.
+- Never add tracker rows directly to `data/applications.md`.
+- Use the JD language for generated output, with English as the default.
+- Preserve German and French support through the existing `modes/de/` and `modes/fr/` routing when clearly appropriate.
+- Do not hand-build raw resume HTML if the shared renderer is available.
 
 ## Step 1 -- Read and verify the job
 
-- If a URL is provided, extract the JD using the same priority order as `modes/auto-pipeline.md`
-- Prefer Playwright when available
-- If running in headless batch mode without Playwright, use WebFetch and mark verification as unconfirmed
+1. Read the JD text from `{{JD_FILE}}`.
+2. If the file is empty or missing, try to fetch the posting from `{{URL}}`.
+3. In batch mode, posting freshness may be partially unverified. If so, say that clearly in Block G instead of guessing.
 
-## Step 2 -- A-F evaluation
+## Step 2 -- Run the evaluation
 
-Follow `modes/oferta.md` exactly for the A-F structure:
+Follow `modes/oferta.md` exactly for the A-G structure:
+
 - A) Role Summary
 - B) CV Match
 - C) Level and Strategy
 - D) Comp and Demand
 - E) Personalization Plan
 - F) Interview Plan
+- G) Posting Legitimacy
 
-## Step 3 -- Report file
+Include:
+- `**URL:** {{URL}}`
+- `**Legitimacy:** {High Confidence | Proceed with Caution | Suspicious}`
+- extracted ATS keywords
+
+## Step 3 -- Save the report
 
 Write the report to:
-- `reports/{###}-{company-slug}-{YYYY-MM-DD}.md`
 
-Use this report format:
+- `reports/{{REPORT_NUM}}-{company-slug}-{{DATE}}.md`
 
-```markdown
-# Evaluation: {Company} - {Role}
+Use the report format defined in `modes/oferta.md`.
 
-**Date:** {YYYY-MM-DD}
-**Archetype:** {detected}
-**Score:** {X/5}
-**URL:** {job-url}
-**Verification:** {active/unconfirmed/etc.}
-**PDF:** {path or pending}
+## Step 4 -- Apply normal artifact gating
 
----
+Use the same gating rules as `modes/auto-pipeline.md` and `modes/pdf.md`:
 
-## A) Role Summary
+- **Verified closed role** -> report + tracker only
+- **Score below 4.0/5** -> report + tracker only
+- **Score >= 4.0/5 and worth pursuing** -> generate resume and cover-letter artifacts
 
-## B) CV Match
+When artifacts are warranted, use the standardized shared renderer path:
 
-## C) Level and Strategy
+1. Create `output/cv-{candidate}-{company}-{YYYY-MM-DD}.brief.json`
+2. Render HTML/PDF with `build-tailored-cv.mjs`
+3. Create `output/cover-letter-{candidate}-{company}-{YYYY-MM-DD}.json`
+4. Render HTML/PDF with `build-cover-letter.mjs`
 
-## D) Comp and Demand
+Do not bypass the shared renderers unless they are broken.
 
-## E) Personalization Plan
+## Step 5 -- Write one tracker TSV line
 
-## F) Interview Plan
+Write exactly one TSV line to:
 
-## G) Draft Application Answers
-(only if score >= 4.5)
+- `batch/tracker-additions/{{ID}}.tsv`
 
----
-
-## Extracted Keywords
-```
-
-## Step 4 -- PDF
-
-Follow `modes/pdf.md`:
-- Detect JD language -> CV language (EN default)
-- Detect paper size from company location
-- Tailor the summary, competencies, and experience ordering to the JD
-- Never invent skills or metrics
-
-## Step 5 -- Tracker TSV
-
-Write one TSV file to:
-- `batch/tracker-additions/{num}-{company-slug}.tsv`
-
-Single-line format:
+Format:
 
 ```tsv
-{num}\t{date}\t{company}\t{role}\t{status}\t{score}/5\t{pdf_emoji}\t[{num}](reports/{num}-{slug}-{date}.md)\t{note}
+{next_num}\t{{DATE}}\t{company}\t{role}\t{status}\t{score}/5\t{pdf_emoji}\t[{{REPORT_NUM}}](reports/{{REPORT_NUM}}-{company-slug}-{{DATE}}.md)\t{note}
 ```
 
-Column order is:
+Column order:
 1. num
 2. date
 3. company
@@ -107,17 +115,46 @@ Column order is:
 8. report
 9. notes
 
-Use canonical status labels from `templates/states.yml`. For a normal completed evaluation, use `Evaluated`.
+Use canonical status labels from `templates/states.yml`:
 
-## Global rules
+- closed role -> `Discarded`
+- active but below threshold -> `SKIP`
+- worth pursuing -> `Evaluated`
 
-- Never invent experience or metrics
-- Never submit an application
-- Never write personalization into shared system files
-- Never add new tracker rows directly to `data/applications.md`
-- Always include `**URL:**` in the report header
-- Always keep the output language aligned with the JD language
+Set PDF to `✅` only when HTML/PDF artifacts were actually generated. Otherwise use `❌`.
 
-## Reminder on source-of-truth metrics
+## Step 6 -- Print final machine-readable JSON
 
-Concrete metrics must be read from `cv.md` and `article-digest.md` at evaluation time. Never hardcode them in this prompt.
+Always end by printing a single JSON object to stdout:
+
+```json
+{
+  "status": "completed",
+  "id": "{{ID}}",
+  "report_num": "{{REPORT_NUM}}",
+  "company": "{company}",
+  "role": "{role}",
+  "score": 4.2,
+  "legitimacy": "Proceed with Caution",
+  "pdf": "output/cv-candidate-company-{{DATE}}.pdf",
+  "report": "reports/{{REPORT_NUM}}-company-{{DATE}}.md",
+  "error": null
+}
+```
+
+If the run fails, emit:
+
+```json
+{
+  "status": "failed",
+  "id": "{{ID}}",
+  "report_num": "{{REPORT_NUM}}",
+  "company": "{company_or_unknown}",
+  "role": "{role_or_unknown}",
+  "score": null,
+  "legitimacy": null,
+  "pdf": null,
+  "report": "reports/{{REPORT_NUM}}-company-{{DATE}}.md",
+  "error": "{short error summary}"
+}
+```
