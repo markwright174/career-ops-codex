@@ -53,6 +53,8 @@ const SYSTEM_PATHS = [
   'dedup-tracker.mjs',
   'normalize-statuses.mjs',
   'cv-sync-check.mjs',
+  'scan.mjs',
+  'gemini-eval.mjs',
   'update-system.mjs',
   'batch/batch-prompt.md',
   'batch/batch-runner.sh',
