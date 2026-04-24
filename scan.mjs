@@ -3,11 +3,12 @@
 /**
  * scan.mjs — Zero-token portal scanner
  *
- * Fetches Greenhouse, Ashby, and Lever APIs directly, applies title
+ * Fetches Greenhouse, Ashby, BambooHR, iCIMS, Lever, SmartRecruiters, Teamtailor,
+ * Workable, and Workday feeds/pages directly, applies title
  * filters from portals.yml, deduplicates against existing history,
  * and appends new offers to pipeline.md + scan-history.tsv.
  *
- * Zero Claude API tokens — pure HTTP + JSON.
+ * Zero Claude API tokens — pure HTTP + JSON/XML.
  *
  * Usage:
  *   node scan.mjs                  # scan all enabled companies
@@ -36,9 +37,15 @@ const FETCH_TIMEOUT_MS = 10_000;
 // ── API detection ───────────────────────────────────────────────────
 
 function detectApi(company) {
-  // Greenhouse: explicit api field
-  if (company.api && company.api.includes('greenhouse')) {
-    return { type: 'greenhouse', url: company.api };
+  if (company.api) {
+    if (typeof company.api === 'string') {
+      const inferred = detectApiFromText(company.api);
+      if (inferred) return inferred;
+    }
+
+    if (typeof company.api === 'object' && company.api.type && company.api.url) {
+      return company.api;
+    }
   }
 
   const candidates = [company.careers_url || '', company.scan_query || ''];
@@ -63,6 +70,35 @@ function detectApiFromText(text) {
     };
   }
 
+  // BambooHR
+  const bambooMatch = text.match(/([a-z0-9-]+)\.bamboohr\.com/i);
+  if (bambooMatch) {
+    return {
+      type: 'bamboohr',
+      url: `https://${bambooMatch[1]}.bamboohr.com/careers/list`,
+      companySlug: bambooMatch[1],
+    };
+  }
+
+  // iCIMS public boards/pages
+  const icimsCareersMatch = text.match(/((?:careers|jobs)(?:-[a-z0-9-]+)?\.icims\.com)/i);
+  if (icimsCareersMatch) {
+    return {
+      type: 'icims',
+      url: `https://${icimsCareersMatch[1]}/jobs/search?ss=1`,
+      host: icimsCareersMatch[1],
+    };
+  }
+
+  const icimsSocialMatch = text.match(/social\.icims\.com\/board\/([A-Za-z0-9_-]+)/i);
+  if (icimsSocialMatch) {
+    return {
+      type: 'icims',
+      url: `https://social.icims.com/board/${icimsSocialMatch[1]}`,
+      boardSlug: icimsSocialMatch[1],
+    };
+  }
+
   // Lever
   const leverMatch = text.match(/jobs\.lever\.co\/([^\/\s"'|?#]+)/i);
   if (leverMatch) {
@@ -72,12 +108,54 @@ function detectApiFromText(text) {
     };
   }
 
+  // Workable public account feed
+  const workableApplyMatch = text.match(/apply\.workable\.com\/([a-z0-9-]+)/i);
+  if (workableApplyMatch) {
+    return {
+      type: 'workable',
+      url: `https://www.workable.com/api/accounts/${workableApplyMatch[1]}?details=true`,
+      companySlug: workableApplyMatch[1],
+    };
+  }
+
+  // SmartRecruiters
+  const smartRecruitersMatch = text.match(/(?:jobs|careers)\.smartrecruiters\.com\/([^\/\s"'|?#]+)/i);
+  if (smartRecruitersMatch) {
+    return {
+      type: 'smartrecruiters',
+      url: `https://api.smartrecruiters.com/v1/companies/${smartRecruitersMatch[1]}/postings?limit=100&offset=0`,
+      companySlug: smartRecruitersMatch[1],
+    };
+  }
+
   // Greenhouse EU boards
   const ghEuMatch = text.match(/job-boards(?:\.eu)?\.greenhouse\.io\/([^\/\s"'|?#]+)/i);
   if (ghEuMatch) {
     return {
       type: 'greenhouse',
       url: `https://boards-api.greenhouse.io/v1/boards/${ghEuMatch[1]}/jobs`,
+    };
+  }
+
+  // Teamtailor
+  const teamtailorMatch = text.match(/([a-z0-9-]+)\.teamtailor\.com/i);
+  if (teamtailorMatch) {
+    return {
+      type: 'teamtailor',
+      url: `https://${teamtailorMatch[1]}.teamtailor.com/jobs.rss`,
+    };
+  }
+
+  // Workday
+  const workdayMatch = text.match(/(?:https?:\/\/)?([a-z0-9-]+)\.(wd\d+)\.myworkdayjobs\.com\/(?:[a-z]{2}-[A-Z]{2}\/)?([A-Za-z0-9_-]+)/i);
+  if (workdayMatch) {
+    const [, company, shard, site] = workdayMatch;
+    return {
+      type: 'workday',
+      url: `https://${company}.${shard}.myworkdayjobs.com/wday/cxs/${company}/${site}/jobs`,
+      companySlug: company,
+      shard,
+      site,
     };
   }
 
@@ -116,7 +194,130 @@ function parseLever(json, companyName) {
   }));
 }
 
-const PARSERS = { greenhouse: parseGreenhouse, ashby: parseAshby, lever: parseLever };
+function parseBamboohr(json, companyName, apiMeta = {}) {
+  const jobs = Array.isArray(json?.result) ? json.result : [];
+
+  return jobs.map(j => ({
+    title: j.jobOpeningName || '',
+    url: j.id ? `https://${apiMeta.companySlug}.bamboohr.com/careers/${j.id}/detail` : '',
+    company: companyName,
+    location: [j.location?.city, j.location?.state, j.location?.country]
+      .filter(Boolean)
+      .join(', '),
+  })).filter(job => job.title && job.url);
+}
+
+function parseIcims(html, companyName, apiMeta = {}) {
+  const seen = new Set();
+  const jobs = [];
+  const base = apiMeta.host ? `https://${apiMeta.host}` : 'https://social.icims.com';
+  const anchorMatches = html.matchAll(/<a[^>]+href="([^"]*\/jobs\/\d+\/[^"]*?)"[^>]*>([\s\S]*?)<\/a>/gi);
+
+  for (const match of anchorMatches) {
+    const href = decodeXmlEntities(match[1] || '').trim();
+    const rawTitle = decodeXmlEntities(match[2] || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const url = href.startsWith('http') ? href : `${base}${href.startsWith('/') ? '' : '/'}${href}`;
+    if (!rawTitle || seen.has(url)) continue;
+    seen.add(url);
+    jobs.push({
+      title: rawTitle,
+      url,
+      company: companyName,
+      location: '',
+    });
+  }
+
+  return jobs;
+}
+
+function decodeXmlEntities(text) {
+  return String(text || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function parseTeamtailor(xml, companyName) {
+  const items = [];
+  const matches = xml.match(/<item>([\s\S]*?)<\/item>/gi) || [];
+
+  for (const item of matches) {
+    const title = decodeXmlEntities((item.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '').trim();
+    const url = decodeXmlEntities((item.match(/<link>([\s\S]*?)<\/link>/i) || [])[1] || '').trim();
+    const location = decodeXmlEntities((item.match(/<description>([\s\S]*?)<\/description>/i) || [])[1] || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!title || !url) continue;
+    items.push({ title, url, company: companyName, location });
+  }
+
+  return items;
+}
+
+function parseWorkday(json, companyName, apiMeta = {}) {
+  const jobs = json.jobPostings || json.jobPostings?.jobPostings || [];
+
+  return jobs.map(j => {
+    const externalPath = j.externalPath || '';
+    const companySlug = apiMeta.companySlug || companyName.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const site = apiMeta.site || 'External';
+    const url = externalPath
+      ? `https://${companySlug}.${apiMeta.shard || 'wd1'}.myworkdayjobs.com/${site}/job/${externalPath}`
+      : '';
+
+    return {
+      title: j.title || '',
+      url,
+      company: companyName,
+      location: j.locationsText || j.location || '',
+    };
+  }).filter(job => job.title && job.url);
+}
+
+function parseWorkable(json, companyName) {
+  const jobs = Array.isArray(json?.jobs) ? json.jobs : [];
+
+  return jobs.map(j => ({
+    title: j.title || j.full_title || '',
+    url: j.url || j.shortlink || '',
+    company: companyName,
+    location: j.location?.location_str || '',
+  })).filter(job => job.title && job.url);
+}
+
+function parseSmartRecruiters(json, companyName) {
+  const jobs = Array.isArray(json?.content) ? json.content : Array.isArray(json?.jobs) ? json.jobs : [];
+
+  return jobs.map(j => ({
+    title: j.name || j.title || '',
+    url: j.applyUrl || j.jobAdUrl || '',
+    company: companyName,
+    location: [
+      j.location?.city,
+      j.location?.region || j.location?.regionCode,
+      j.location?.country,
+    ].filter(Boolean).join(', '),
+  })).filter(job => job.title && job.url);
+}
+
+const PARSERS = {
+  greenhouse: parseGreenhouse,
+  ashby: parseAshby,
+  bamboohr: parseBamboohr,
+  icims: parseIcims,
+  lever: parseLever,
+  smartrecruiters: parseSmartRecruiters,
+  teamtailor: parseTeamtailor,
+  workable: parseWorkable,
+  workday: parseWorkday,
+};
 
 // ── Fetch with timeout ──────────────────────────────────────────────
 
@@ -130,6 +331,101 @@ async function fetchJson(url) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function fetchText(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchWorkdayJobs(apiMeta) {
+  const allJobs = [];
+  let offset = 0;
+  const limit = 20;
+
+  while (true) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(apiMeta.url, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          appliedFacets: {},
+          limit,
+          offset,
+          searchText: '',
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const jobs = json.jobPostings || [];
+      allJobs.push(...jobs);
+
+      if (!Array.isArray(jobs) || jobs.length < limit) {
+        return { ...json, jobPostings: allJobs };
+      }
+
+      offset += limit;
+      if (offset > 200) {
+        return { ...json, jobPostings: allJobs };
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+async function fetchBamboohrJobs(apiMeta) {
+  return await fetchJson(apiMeta.url);
+}
+
+async function fetchIcimsJobs(apiMeta) {
+  return await fetchText(apiMeta.url);
+}
+
+async function fetchSmartRecruitersJobs(apiMeta) {
+  const allJobs = [];
+  let offset = 0;
+  const limit = 100;
+
+  while (true) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const url = `https://api.smartrecruiters.com/v1/companies/${apiMeta.companySlug}/postings?limit=${limit}&offset=${offset}`;
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const jobs = Array.isArray(json.content) ? json.content : [];
+      allJobs.push(...jobs);
+
+      if (!jobs.length || allJobs.length >= (json.totalFound || jobs.length)) {
+        return { ...json, content: allJobs };
+      }
+
+      offset += limit;
+      if (offset > 500) {
+        return { ...json, content: allJobs };
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+async function fetchWorkableJobs(apiMeta) {
+  return await fetchJson(apiMeta.url);
 }
 
 // ── Title filter ────────────────────────────────────────────────────
@@ -228,6 +524,29 @@ function buildRoleQualityFilter() {
   return (title = '') => {
     const lower = String(title || '').toLowerCase();
     return !blockedTitleSignals.some(signal => lower.includes(signal));
+  };
+}
+
+function buildRoleRanker() {
+  const rankedSignals = [
+    { score: 5, terms: ['instructional design manager', 'senior instructional designer', 'instructional designer', 'learning experience designer'] },
+    { score: 4, terms: ['learning designer', 'curriculum designer', 'curriculum developer', 'faculty development', 'learning strategist', 'learning consultant'] },
+    { score: 3, terms: ['customer education manager', 'customer education', 'product education', 'technical training', 'technical learning'] },
+    { score: 2, terms: ['enablement content', 'education program strategist', 'customer learning'] },
+    { score: 1, terms: ['customer enablement', 'enablement', 'customer success'] },
+  ];
+
+  return (title = '') => {
+    const lower = String(title || '').toLowerCase();
+    let bestScore = 0;
+
+    for (const group of rankedSignals) {
+      if (group.terms.some(term => lower.includes(term))) {
+        bestScore = Math.max(bestScore, group.score);
+      }
+    }
+
+    return bestScore;
   };
 }
 
@@ -364,6 +683,7 @@ async function main() {
   const titleFilter = buildTitleFilter(config.title_filter);
   const geoFilter = buildGeoFilter(profile);
   const roleQualityFilter = buildRoleQualityFilter();
+  const roleRanker = buildRoleRanker();
 
   // 2. Filter to enabled companies with detectable APIs
   const targets = companies
@@ -387,6 +707,7 @@ async function main() {
   let totalFiltered = 0;
   let totalGeoFiltered = 0;
   let totalRoleFiltered = 0;
+  let totalRankFiltered = 0;
   let totalDupes = 0;
   const newOffers = [];
   const errors = [];
@@ -394,8 +715,20 @@ async function main() {
   const tasks = targets.map(company => async () => {
     const { type, url } = company._api;
     try {
-      const json = await fetchJson(url);
-      const jobs = PARSERS[type](json, company.name);
+      const payload = type === 'teamtailor'
+        ? await fetchText(url)
+        : type === 'workday'
+          ? await fetchWorkdayJobs(company._api)
+          : type === 'bamboohr'
+            ? await fetchBamboohrJobs(company._api)
+            : type === 'icims'
+              ? await fetchIcimsJobs(company._api)
+            : type === 'smartrecruiters'
+              ? await fetchSmartRecruitersJobs(company._api)
+              : type === 'workable'
+                ? await fetchWorkableJobs(company._api)
+              : await fetchJson(url);
+      const jobs = PARSERS[type](payload, company.name, company._api);
       totalFound += jobs.length;
 
       for (const job of jobs) {
@@ -405,6 +738,11 @@ async function main() {
         }
         if (!roleQualityFilter(job.title)) {
           totalRoleFiltered++;
+          continue;
+        }
+        const roleRank = roleRanker(job.title);
+        if (roleRank < 3) {
+          totalRankFiltered++;
           continue;
         }
         if (!geoFilter(job.location)) {
@@ -423,7 +761,7 @@ async function main() {
         // Mark as seen to avoid intra-scan dupes
         seenUrls.add(job.url);
         seenCompanyRoles.add(key);
-        newOffers.push({ ...job, source: `${type}-api` });
+        newOffers.push({ ...job, source: `${type}-api`, roleRank });
       }
     } catch (err) {
       errors.push({ company: company.name, error: err.message });
@@ -431,6 +769,11 @@ async function main() {
   });
 
   await parallelFetch(tasks, CONCURRENCY);
+
+  newOffers.sort((a, b) => {
+    if (b.roleRank !== a.roleRank) return b.roleRank - a.roleRank;
+    return a.company.localeCompare(b.company);
+  });
 
   // 5. Write results
   if (!dryRun && newOffers.length > 0) {
@@ -446,6 +789,7 @@ async function main() {
   console.log(`Total jobs found:      ${totalFound}`);
   console.log(`Filtered by title:     ${totalFiltered} removed`);
   console.log(`Filtered by role:      ${totalRoleFiltered} removed`);
+  console.log(`Filtered by rank:      ${totalRankFiltered} removed`);
   console.log(`Filtered by geography: ${totalGeoFiltered} removed`);
   console.log(`Duplicates:            ${totalDupes} skipped`);
   console.log(`New offers added:      ${newOffers.length}`);
