@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# career-ops batch runner — standalone orchestrator for AI CLI workers
-# Reads batch-input.tsv, delegates each offer to a configured AI worker,
+# career-ops batch runner — standalone orchestrator for claude -p workers
+# Reads batch-input.tsv, delegates each offer to a claude -p worker,
 # tracks state in batch-state.tsv for resumability.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,22 +27,17 @@ DRY_RUN=false
 RETRY_FAILED=false
 START_FROM=0
 MAX_RETRIES=2
-WORKER_CLI="${BATCH_WORKER_CLI:-claude}"
-WORKER_PRINT_FLAG="${BATCH_WORKER_PRINT_FLAG:--p}"
-WORKER_SYSTEM_PROMPT_FLAG="${BATCH_WORKER_SYSTEM_PROMPT_FLAG:---append-system-prompt-file}"
-WORKER_DANGER_FLAG="${BATCH_WORKER_DANGER_FLAG:---dangerously-skip-permissions}"
-WORKER_EXTRA_ARGS_RAW="${BATCH_WORKER_EXTRA_ARGS:-}"
 MIN_SCORE=0
 
 usage() {
   cat <<'USAGE'
-career-ops batch runner — process job offers in batch via a configurable AI CLI worker
+career-ops batch runner — process job offers in batch via claude -p workers
+Uses your default Claude model (Claude Max subscription).
 
 Usage: batch-runner.sh [OPTIONS]
 
 Options:
   --parallel N         Number of parallel workers (default: 1)
-  --worker-cli CMD     Worker CLI command to run (default: claude)
   --dry-run            Show what would be processed, don't execute
   --retry-failed       Only retry offers marked as "failed" in state
   --start-from N       Start from offer ID N (skip earlier IDs)
@@ -64,21 +59,11 @@ Examples:
   # Process all pending
   ./batch-runner.sh
 
-  # Process with a different worker CLI
-  ./batch-runner.sh --worker-cli my-ai-cli
-
   # Retry only failed offers
   ./batch-runner.sh --retry-failed
 
   # Process 2 at a time starting from ID 10
   ./batch-runner.sh --parallel 2 --start-from 10
-
-Environment overrides:
-  BATCH_WORKER_CLI                  Worker CLI command (default: claude)
-  BATCH_WORKER_PRINT_FLAG           Non-interactive print flag (default: -p)
-  BATCH_WORKER_SYSTEM_PROMPT_FLAG   System prompt file flag (default: --append-system-prompt-file)
-  BATCH_WORKER_DANGER_FLAG          Permission bypass flag (default: --dangerously-skip-permissions)
-  BATCH_WORKER_EXTRA_ARGS           Extra worker CLI args, space-separated
 USAGE
 }
 
@@ -86,7 +71,6 @@ USAGE
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --parallel) PARALLEL="$2"; shift 2 ;;
-    --worker-cli) WORKER_CLI="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
     --retry-failed) RETRY_FAILED=true; shift ;;
     --start-from) START_FROM="$2"; shift 2 ;;
@@ -135,47 +119,12 @@ check_prerequisites() {
     exit 1
   fi
 
-  if ! command -v "$WORKER_CLI" &>/dev/null; then
-    echo "ERROR: Worker CLI '$WORKER_CLI' not found in PATH."
+  if ! command -v claude &>/dev/null; then
+    echo "ERROR: 'claude' CLI not found in PATH."
     exit 1
   fi
 
   mkdir -p "$LOGS_DIR" "$TRACKER_DIR" "$REPORTS_DIR"
-}
-
-invoke_worker() {
-  local resolved_prompt="$1"
-  local prompt="$2"
-  local log_file="$3"
-  local -a cmd=()
-  local -a extra_args=()
-
-  if [[ -n "$WORKER_EXTRA_ARGS_RAW" ]]; then
-    # shellcheck disable=SC2206
-    extra_args=($WORKER_EXTRA_ARGS_RAW)
-  fi
-
-  cmd+=("$WORKER_CLI")
-
-  if [[ ${#extra_args[@]} -gt 0 ]]; then
-    cmd+=("${extra_args[@]}")
-  fi
-
-  if [[ -n "$WORKER_DANGER_FLAG" ]]; then
-    cmd+=("$WORKER_DANGER_FLAG")
-  fi
-
-  if [[ -n "$WORKER_SYSTEM_PROMPT_FLAG" ]]; then
-    cmd+=("$WORKER_SYSTEM_PROMPT_FLAG" "$resolved_prompt")
-  fi
-
-  if [[ -n "$WORKER_PRINT_FLAG" ]]; then
-    cmd+=("$WORKER_PRINT_FLAG")
-  fi
-
-  cmd+=("$prompt")
-
-  "${cmd[@]}" > "$log_file" 2>&1
 }
 
 # Initialize state file if it doesn't exist
@@ -373,7 +322,7 @@ process_offer() {
 
   # Build the prompt with placeholders replaced
   local prompt
-  prompt="Process this job offer. Run the full Career-Ops pipeline: evaluation A-G, report .md, gated resume and cover-letter artifacts when warranted, and tracker TSV output."
+  prompt="Procesa esta oferta de empleo. Ejecuta el pipeline completo: evaluación A-F + report .md + PDF + tracker line."
   prompt="$prompt URL: $url"
   prompt="$prompt JD file: $jd_file"
   prompt="$prompt Report number: $report_num"
@@ -401,9 +350,13 @@ process_offer() {
     -e "s|{{ID}}|${esc_id}|g" \
     "$PROMPT_FILE" > "$resolved_prompt"
 
-  # Launch the configured worker CLI in non-interactive mode
+  # Launch claude -p worker (uses default model from Claude Max subscription)
   local exit_code=0
-  invoke_worker "$resolved_prompt" "$prompt" "$log_file" || exit_code=$?
+  claude -p \
+    --dangerously-skip-permissions \
+    --append-system-prompt-file "$resolved_prompt" \
+    "$prompt" \
+    > "$log_file" 2>&1 || exit_code=$?
 
   # Cleanup resolved prompt
   rm -f "$resolved_prompt"
@@ -415,7 +368,7 @@ process_offer() {
     # Try to extract score from worker output
     local score="-"
     local score_match
-    score_match=$(sed -nE 's/.*"score":[[:space:]]*([0-9.]+).*/\1/p' "$log_file" 2>/dev/null | head -1 || true)
+   score_match=$(sed -nE 's/.*"score":[[:space:]]*([0-9.]+).*/\1/p' "$log_file" 2>/dev/null | head -1 || true)
     if [[ -n "$score_match" ]]; then
       score="$score_match"
     fi
@@ -425,7 +378,7 @@ process_offer() {
       if (( $(echo "$score < $MIN_SCORE" | bc -l) )); then
         update_state "$id" "$url" "skipped" "$started_at" "$completed_at" "$report_num" "$score" "below-min-score" "$retries"
         echo "    ⏭️  Skipped (score: $score < min-score: $MIN_SCORE)"
-        return 0
+        continue
       fi
     fi
 
@@ -509,7 +462,6 @@ main() {
 
   echo "=== career-ops batch runner ==="
   echo "Parallel: $PARALLEL | Max retries: $MAX_RETRIES"
-  echo "Worker CLI: $WORKER_CLI"
   echo "Input: $total_input offers"
   echo ""
 
