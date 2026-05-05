@@ -381,6 +381,13 @@ function buildHtml(template, data) {
   for (const [key, value] of Object.entries(data)) {
     html = html.replaceAll(`{{${key}}}`, value);
   }
+
+  // Collapse optional portfolio contact slot when no portfolio URL/display is configured.
+  html = html.replace(
+    /<span class="separator">\|<\/span>\s*<a href=""><\/a>\s*<span class="separator">\|<\/span>/g,
+    '<span class="separator">|</span>'
+  );
+
   return html;
 }
 
@@ -423,13 +430,18 @@ function main() {
   const candidate = profile.candidate || {};
   const experience = mergeExperience(cv.experience, brief.experience);
   const competencies = filterSupportedCompetencies(brief.competencies || [], sourceText);
+  const linkedinUrl = (candidate.linkedin || '').startsWith('http') ? candidate.linkedin : `https://${candidate.linkedin || ''}`;
+  const portfolioUrl = candidate.portfolio_url || brief.portfolio_url || '';
   const html = buildHtml(template, {
     LANG: escapeHtml(brief.language || 'en'),
     PAGE_WIDTH: format === 'letter' ? '8.5in' : '210mm',
     NAME: escapeHtml(candidate.full_name || brief.name || ''),
+    PHONE: escapeHtml(candidate.phone || brief.phone || ''),
     EMAIL: escapeHtml(candidate.email || brief.email || ''),
-    LINKEDIN_URL: escapeHtml((candidate.linkedin || '').startsWith('http') ? candidate.linkedin : `https://${candidate.linkedin || ''}`),
-    LINKEDIN_DISPLAY: escapeHtml(slugToDisplay((candidate.linkedin || '').startsWith('http') ? candidate.linkedin : `https://${candidate.linkedin || ''}`)),
+    LINKEDIN_URL: escapeHtml(linkedinUrl),
+    LINKEDIN_DISPLAY: escapeHtml(slugToDisplay(linkedinUrl)),
+    PORTFOLIO_URL: escapeHtml(portfolioUrl),
+    PORTFOLIO_DISPLAY: escapeHtml(portfolioUrl ? slugToDisplay(portfolioUrl) : ''),
     LOCATION: escapeHtml(candidate.location || brief.location || ''),
     SECTION_SUMMARY: escapeHtml(labels.summary),
     SUMMARY_TEXT: escapeHtml(brief.summary_text || cv.summary || ''),

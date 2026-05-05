@@ -80,6 +80,16 @@ function detectApiFromText(text) {
     };
   }
 
+  // Breezy
+  const breezyMatch = text.match(/([a-z0-9-]+)\.breezy\.hr/i);
+  if (breezyMatch) {
+    return {
+      type: 'breezy',
+      url: `https://${breezyMatch[1]}.breezy.hr/json`,
+      companySlug: breezyMatch[1],
+    };
+  }
+
   // iCIMS public boards/pages
   const icimsCareersMatch = text.match(/((?:careers|jobs)(?:-[a-z0-9-]+)?\.icims\.com)/i);
   if (icimsCareersMatch) {
@@ -138,7 +148,7 @@ function detectApiFromText(text) {
   }
 
   // Teamtailor
-  const teamtailorMatch = text.match(/([a-z0-9-]+)\.teamtailor\.com/i);
+  const teamtailorMatch = text.match(/([a-z0-9-]+(?:\.[a-z0-9-]+)*)\.teamtailor\.com/i);
   if (teamtailorMatch) {
     return {
       type: 'teamtailor',
@@ -204,6 +214,17 @@ function parseBamboohr(json, companyName, apiMeta = {}) {
     location: [j.location?.city, j.location?.state, j.location?.country]
       .filter(Boolean)
       .join(', '),
+  })).filter(job => job.title && job.url);
+}
+
+function parseBreezy(json, companyName) {
+  const jobs = Array.isArray(json) ? json : [];
+
+  return jobs.map(j => ({
+    title: j.name || '',
+    url: j.url || '',
+    company: companyName,
+    location: j.location || '',
   })).filter(job => job.title && job.url);
 }
 
@@ -311,6 +332,7 @@ const PARSERS = {
   greenhouse: parseGreenhouse,
   ashby: parseAshby,
   bamboohr: parseBamboohr,
+  breezy: parseBreezy,
   icims: parseIcims,
   lever: parseLever,
   smartrecruiters: parseSmartRecruiters,
