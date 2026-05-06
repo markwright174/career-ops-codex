@@ -19,7 +19,7 @@ Facilitation / enablement evidence:
 
 ## Healthcare Education Domain
 
-- In the current role, Mark manages curriculum design, development, and maintenance across the full development cycle for nursing programs, including LVN, ADN, and BSN pathways.
+- In the current role, Mark manages curriculum design, development, and maintenance across the full development cycle for degreed nursing education programs, including LVN, ADN, and BSN pathways.
 - This work provides direct familiarity with healthcare education expectations, regulated instructional environments, and the operational realities of program maintenance across complex learning tracks.
 
 ## Confirmed Tool Additions
