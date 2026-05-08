@@ -2,7 +2,10 @@
 
 Escanea portales de empleo configurados, filtra por relevancia de título, y añade nuevas ofertas al pipeline para evaluación posterior.
 
-> **Nota (v1.5+):** El escáner por defecto (`scan.mjs` / `npm run scan`) es **zero-token** y sólo consulta directamente las APIs públicas de Greenhouse, Ashby y Lever. Los niveles con Playwright/WebSearch descritos abajo son el flujo **agente** (ejecutado por Claude/Codex), no lo que hace `scan.mjs`. Si una empresa no tiene API Greenhouse/Ashby/Lever, `scan.mjs` la ignorará; para esos casos, el agente debe completar manualmente el Nivel 1 (Playwright) o Nivel 3 (WebSearch).
+> **Nota (v1.6+):** El escáner por defecto (`scan.mjs` / `npm run scan`) sigue siendo **zero-token**, pero ahora hace dos cosas:  
+> 1. consulta directamente feeds/APIs públicas soportadas (Greenhouse, Ashby, Lever, BambooHR, Breezy, iCIMS, SmartRecruiters, Teamtailor, Workable y Workday), y  
+> 2. ejecuta los `search_queries` habilitados de `portals.yml` usando búsqueda web HTML para descubrimiento amplio.  
+> Aun así, Playwright/WebSearch manual del agente sigue siendo útil para páginas JS complejas, validación de liveness y empresas sin feed/API estable.
 
 ## Ejecución recomendada
 

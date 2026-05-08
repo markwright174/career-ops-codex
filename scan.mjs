@@ -3,15 +3,14 @@
 /**
  * scan.mjs — Zero-token portal scanner
  *
- * Fetches Greenhouse, Ashby, BambooHR, iCIMS, Lever, SmartRecruiters, Teamtailor,
- * Workable, and Workday feeds/pages directly, applies title
- * filters from portals.yml, deduplicates against existing history,
- * and appends new offers to pipeline.md + scan-history.tsv.
+ * Fetches ATS feeds/pages directly and also executes configured broad search
+ * queries, applies title filters from portals.yml, deduplicates against
+ * existing history, and appends new offers to pipeline.md + scan-history.tsv.
  *
  * Zero Claude API tokens — pure HTTP + JSON/XML.
  *
  * Usage:
- *   node scan.mjs                  # scan all enabled companies
+ *   node scan.mjs                  # scan tracked companies + enabled search queries
  *   node scan.mjs --dry-run        # preview without writing files
  *   node scan.mjs --company Cohere # scan a single company
  */
@@ -367,6 +366,24 @@ async function fetchText(url) {
   }
 }
 
+async function fetchSearchResults(query) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; career-ops-scan/1.0)',
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchWorkdayJobs(apiMeta) {
   const allJobs = [];
   let offset = 0;
@@ -541,6 +558,9 @@ function buildRoleQualityFilter() {
     'support enablement',
     'account executive',
     'business development',
+    'talent acquisition',
+    'hr generalist',
+    'human resources generalist',
   ];
 
   return (title = '') => {
@@ -552,7 +572,7 @@ function buildRoleQualityFilter() {
 function buildRoleRanker() {
   const rankedSignals = [
     { score: 5, terms: ['instructional design manager', 'senior instructional designer', 'instructional designer', 'learning experience designer'] },
-    { score: 4, terms: ['learning designer', 'curriculum designer', 'curriculum developer', 'faculty development', 'learning strategist', 'learning consultant'] },
+    { score: 4, terms: ['learning designer', 'curriculum designer', 'curriculum developer', 'faculty development', 'learning strategist', 'learning consultant', 'leadership development', 'organizational development', 'talent development'] },
     { score: 3, terms: ['customer education manager', 'customer education', 'product education', 'technical training', 'technical learning'] },
     { score: 2, terms: ['enablement content', 'education program strategist', 'customer learning'] },
     { score: 1, terms: ['customer enablement', 'enablement', 'customer success'] },
@@ -570,6 +590,102 @@ function buildRoleRanker() {
 
     return bestScore;
   };
+}
+
+function decodeDuckDuckGoUrl(href) {
+  if (!href) return '';
+  const normalized = href.startsWith('//') ? `https:${href}` : href;
+
+  try {
+    const url = new URL(normalized);
+    const uddg = url.searchParams.get('uddg');
+    if (uddg) return decodeURIComponent(uddg);
+  } catch {
+    // fall through
+  }
+
+  return decodeXmlEntities(normalized);
+}
+
+function inferCompanyFromUrl(url) {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    const pieces = hostname.split('.');
+    if (pieces.length >= 2) return pieces[pieces.length - 2];
+    return hostname;
+  } catch {
+    return '';
+  }
+}
+
+function companyMatchesFilter(company, filterCompany) {
+  if (!filterCompany) return true;
+  const needle = filterCompany.toLowerCase();
+  const haystacks = [
+    company.name || '',
+    company.careers_url || '',
+    company.scan_query || '',
+    typeof company.api === 'string' ? company.api : '',
+  ].map(value => String(value).toLowerCase());
+
+  return haystacks.some(value => value.includes(needle));
+}
+
+function cleanSearchTitle(title) {
+  return decodeXmlEntities(title || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function inferTitleAndCompany(rawTitle, url) {
+  const title = cleanSearchTitle(rawTitle);
+  const patterns = [
+    /^Job Application for (.+?) at (.+)$/i,
+    /^(.+?)\s+@\s+(.+)$/i,
+    /^(.+?)\s+\|\s+(.+)$/i,
+    /^(.+?)\s+[—–-]\s+(.+)$/i,
+    /^(.+?)\s+at\s+(.+)$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = title.match(pattern);
+    if (match) {
+      return {
+        title: match[1].trim(),
+        company: match[2].trim(),
+      };
+    }
+  }
+
+  return {
+    title,
+    company: inferCompanyFromUrl(url),
+  };
+}
+
+function parseDuckDuckGoResults(html, queryName) {
+  const results = [];
+  const seen = new Set();
+  const matches = html.matchAll(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi);
+
+  for (const match of matches) {
+    const url = decodeDuckDuckGoUrl(match[1]);
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+
+    const parsed = inferTitleAndCompany(match[2], url);
+    if (!parsed.title) continue;
+
+    results.push({
+      title: parsed.title,
+      url,
+      company: parsed.company || queryName,
+      location: '',
+    });
+  }
+
+  return results;
 }
 
 // ── Dedup ───────────────────────────────────────────────────────────
@@ -702,6 +818,7 @@ async function main() {
   const config = parseYaml(readFileSync(PORTALS_PATH, 'utf-8'));
   const profile = existsSync(PROFILE_PATH) ? parseYaml(readFileSync(PROFILE_PATH, 'utf-8')) : {};
   const companies = config.tracked_companies || [];
+  const searchQueries = (config.search_queries || []).filter(q => q.enabled !== false);
   const titleFilter = buildTitleFilter(config.title_filter);
   const geoFilter = buildGeoFilter(profile);
   const roleQualityFilter = buildRoleQualityFilter();
@@ -710,13 +827,21 @@ async function main() {
   // 2. Filter to enabled companies with detectable APIs
   const targets = companies
     .filter(c => c.enabled !== false)
-    .filter(c => !filterCompany || c.name.toLowerCase().includes(filterCompany))
+    .filter(c => companyMatchesFilter(c, filterCompany))
     .map(c => ({ ...c, _api: detectApi(c) }))
     .filter(c => c._api !== null);
 
   const skippedCount = companies.filter(c => c.enabled !== false).length - targets.length;
+  const runnableQueries = filterCompany
+    ? companies
+        .filter(c => c.enabled !== false)
+        .filter(c => companyMatchesFilter(c, filterCompany))
+        .filter(c => c.scan_query)
+        .map(c => ({ name: `Tracked Search — ${c.name}`, query: c.scan_query }))
+    : searchQueries;
 
   console.log(`Scanning ${targets.length} companies via API (${skippedCount} skipped — no API detected)`);
+  console.log(`Running ${runnableQueries.length} broad search queries`);
   if (dryRun) console.log('(dry run — no files will be written)\n');
 
   // 3. Load dedup sets
@@ -790,7 +915,49 @@ async function main() {
     }
   });
 
-  await parallelFetch(tasks, CONCURRENCY);
+  const queryTasks = runnableQueries.map(query => async () => {
+    try {
+      const html = await fetchSearchResults(query.query);
+      const jobs = parseDuckDuckGoResults(html, query.name);
+      totalFound += jobs.length;
+
+      for (const job of jobs) {
+        if (!titleFilter(job.title)) {
+          totalFiltered++;
+          continue;
+        }
+        if (!roleQualityFilter(job.title)) {
+          totalRoleFiltered++;
+          continue;
+        }
+        const roleRank = roleRanker(job.title);
+        if (roleRank < 3) {
+          totalRankFiltered++;
+          continue;
+        }
+        if (!geoFilter(job.location)) {
+          totalGeoFiltered++;
+          continue;
+        }
+        if (seenUrls.has(job.url)) {
+          totalDupes++;
+          continue;
+        }
+        const key = `${job.company.toLowerCase()}::${job.title.toLowerCase()}`;
+        if (seenCompanyRoles.has(key)) {
+          totalDupes++;
+          continue;
+        }
+        seenUrls.add(job.url);
+        seenCompanyRoles.add(key);
+        newOffers.push({ ...job, source: `search:${query.name}`, roleRank });
+      }
+    } catch (err) {
+      errors.push({ company: query.name, error: err.message });
+    }
+  });
+
+  await parallelFetch([...tasks, ...queryTasks], CONCURRENCY);
 
   newOffers.sort((a, b) => {
     if (b.roleRank !== a.roleRank) return b.roleRank - a.roleRank;
@@ -808,6 +975,7 @@ async function main() {
   console.log(`Portal Scan — ${date}`);
   console.log(`${'━'.repeat(45)}`);
   console.log(`Companies scanned:     ${targets.length}`);
+  console.log(`Queries executed:     ${runnableQueries.length}`);
   console.log(`Total jobs found:      ${totalFound}`);
   console.log(`Filtered by title:     ${totalFiltered} removed`);
   console.log(`Filtered by role:      ${totalRoleFiltered} removed`);

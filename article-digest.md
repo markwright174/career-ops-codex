@@ -25,8 +25,10 @@ Facilitation / enablement evidence:
 ## Confirmed Tool Additions
 
 - Intermediate experience with Adobe Captivate.
+- Working knowledge of xAPI and Tin Can API through recent professional development.
 
 Evidence boundaries:
 - Do not overstate this as formal enterprise AI enablement ownership.
 - Do not claim legal AI, cloud-security AI, or dedicated AI-product training unless confirmed later.
+- Do not overstate xAPI / Tin Can as deep implementation architecture or advanced LRS engineering ownership.
 - Best framing: AI-supported instructional design, curriculum development, assessment generation, content review, and learning-data analysis.
