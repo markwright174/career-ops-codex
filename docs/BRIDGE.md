@@ -16,6 +16,7 @@ small set of explicit actions instead of:
 Start the local bridge:
 
 ```bash
+set CAREER_OPS_BRIDGE_TOKEN=replace-with-a-long-random-secret
 npm run bridge
 ```
 
@@ -33,7 +34,15 @@ http://127.0.0.1:8787/health
 
 ## Security
 
-Optional bearer token:
+The bridge is now locked down by default:
+
+- binds to `127.0.0.1` unless you explicitly override `CAREER_OPS_BRIDGE_HOST`
+- refuses to start without `CAREER_OPS_BRIDGE_TOKEN`
+- rate-limits requests in memory
+- hides raw child-process stdout/stderr from remote callers unless debug mode is enabled
+- keeps write actions disabled unless you explicitly opt in
+
+Required bearer token:
 
 ```bash
 set CAREER_OPS_BRIDGE_TOKEN=your-secret-token
@@ -46,9 +55,26 @@ Then send:
 Authorization: Bearer your-secret-token
 ```
 
-The bridge only allows a fixed whitelist of actions.
+Write actions stay disabled until you explicitly allow them:
 
-It does **not** allow arbitrary shell commands.
+```bash
+set CAREER_OPS_BRIDGE_ALLOW_WRITE=1
+```
+
+Use that only when you are ready for ChatGPT or another frontend to trigger
+evaluation, package generation, and tracker-writing behavior.
+
+The bridge only allows a fixed whitelist of actions and does **not** allow
+arbitrary shell commands.
+
+Optional debug mode for local troubleshooting:
+
+```bash
+set CAREER_OPS_BRIDGE_DEBUG=1
+```
+
+This re-enables raw stdout/stderr in error responses, so it should stay off for
+any tunneled or remote-access setup.
 
 ## Payload Shape
 
@@ -89,6 +115,9 @@ Write/evaluate/package:
 - `evaluate`
 - `package`
 - `apply-prep`
+
+If `CAREER_OPS_BRIDGE_ALLOW_WRITE` is not set to `1`, write actions return
+`403`.
 
 ## Action Semantics
 
@@ -168,3 +197,20 @@ This creates an audit trail for both frontend reads and repo-changing actions.
 
 This keeps the repo as the backend and the chat product as the conversation
 layer.
+
+## Public Exposure Guidance
+
+Do not expose the bridge publicly in its default development shape. Before
+putting a tunnel in front of it, keep these guardrails in place:
+
+1. strong `CAREER_OPS_BRIDGE_TOKEN`
+2. localhost binding unless the tunnel specifically needs another host
+3. write actions off unless you actively need them
+4. MCP wrapper or named-tool layer instead of a generic public endpoint
+
+For personal use, the safer pattern is:
+
+1. run the bridge locally
+2. expose it only through an authenticated HTTPS tunnel
+3. put an MCP wrapper in front of the bridge
+4. keep write actions disabled except during intentional apply-prep sessions

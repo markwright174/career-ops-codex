@@ -86,7 +86,14 @@ Local JSON bridge around `chat-ops.mjs`, intended to be exposed later through a
 tunnel or MCP wrapper instead of granting a frontend arbitrary shell access.
 
 ```bash
+set CAREER_OPS_BRIDGE_TOKEN=replace-with-a-long-random-secret
 npm run bridge
+```
+
+Optional write enablement for evaluation/package/apply-prep:
+
+```bash
+set CAREER_OPS_BRIDGE_ALLOW_WRITE=1
 ```
 
 Health endpoint:
@@ -103,6 +110,12 @@ POST /action
 
 See [docs/BRIDGE.md](/G:/My%20Drive/career-ops/docs/BRIDGE.md) for payloads and
 allowed actions.
+
+Security defaults:
+- binds to `127.0.0.1` unless `CAREER_OPS_BRIDGE_HOST` is overridden
+- refuses to start without `CAREER_OPS_BRIDGE_TOKEN`
+- keeps write actions disabled unless `CAREER_OPS_BRIDGE_ALLOW_WRITE=1`
+- rate-limits requests and suppresses raw child-process output in remote errors
 
 **Exit codes:** long-running server process.
 

@@ -79,6 +79,13 @@ for (const { name, allowFail } of scripts) {
   }
 }
 
+const bridgeWithoutToken = run('node bridge-server.mjs 2>&1', { timeout: 3000 });
+if (bridgeWithoutToken === null) {
+  pass('bridge-server.mjs refuses to start without CAREER_OPS_BRIDGE_TOKEN');
+} else {
+  fail('bridge-server.mjs started without CAREER_OPS_BRIDGE_TOKEN');
+}
+
 // ── 3. DASHBOARD BUILD ──────────────────────────────────────────
 
 if (!QUICK) {

@@ -63,3 +63,9 @@ npm run verify
 # optional dashboard build
 cd dashboard && go build ./...
 ```
+
+## Current Resume Point
+
+If you are picking this work back up after a pause, start with:
+
+- [docs/CODEX_HANDOFF.md](/G:/My%20Drive/career-ops/docs/CODEX_HANDOFF.md)
