@@ -7,12 +7,15 @@ All scripts live in the project root as `.mjs` modules and are exposed via `npm 
 | Command | Script | Purpose |
 |---------|--------|---------|
 | `npm run chat` | `chat-ops.mjs` | Frontend command surface for ChatGPT/Codex |
+| `npm run bridge` | `bridge-server.mjs` | Local JSON bridge for MCP/tunnel frontends |
 | `npm run doctor` | `doctor.mjs` | Validate setup prerequisites |
 | `npm run verify` | `verify-pipeline.mjs` | Check pipeline data integrity |
 | `npm run normalize` | `normalize-statuses.mjs` | Fix non-canonical statuses |
 | `npm run dedup` | `dedup-tracker.mjs` | Remove duplicate tracker entries |
 | `npm run merge` | `merge-tracker.mjs` | Merge batch TSVs into applications.md |
 | `npm run pdf` | `generate-pdf.mjs` | Convert HTML to ATS-optimized PDF |
+| `npm run gemini:package` | `gemini-package.mjs` | Generate tailored CV and cover letter package |
+| `npm run gemini:pipeline` | `gemini-auto-pipeline.mjs` | Evaluate a role and update report/tracker, optionally with package |
 | `npm run sync-check` | `cv-sync-check.mjs` | Validate CV/profile consistency |
 | `npm run update:check` | `update-system.mjs check` | Check for upstream updates |
 | `npm run update` | `update-system.mjs apply` | Apply upstream update |
@@ -66,10 +69,42 @@ Primary actions:
 - `quick-apply`
 - `reports`
 - `liveness`
+- `evaluate`
+- `package`
+- `apply-prep`
 
 See [docs/CHATGPT_FRONTEND.md](/G:/My%20Drive/career-ops/docs/CHATGPT_FRONTEND.md) for the recommended frontend workflow.
+See [docs/BRIDGE.md](/G:/My%20Drive/career-ops/docs/BRIDGE.md) for the local bridge architecture.
 
 **Exit codes:** `0` success, `1` invalid action or underlying command failure.
+
+---
+
+## bridge
+
+Local JSON bridge around `chat-ops.mjs`, intended to be exposed later through a
+tunnel or MCP wrapper instead of granting a frontend arbitrary shell access.
+
+```bash
+npm run bridge
+```
+
+Health endpoint:
+
+```text
+GET /health
+```
+
+Action endpoint:
+
+```text
+POST /action
+```
+
+See [docs/BRIDGE.md](/G:/My%20Drive/career-ops/docs/BRIDGE.md) for payloads and
+allowed actions.
+
+**Exit codes:** long-running server process.
 
 ---
 

@@ -4,6 +4,8 @@ This repo now includes a thin command surface for ChatGPT or any other
 conversational frontend that should operate the repo without re-deriving the
 workflow from raw files every turn.
 
+For bridge/MCP-oriented setups, see [docs/BRIDGE.md](/G:/My%20Drive/career-ops/docs/BRIDGE.md).
+
 ## Goal
 
 Use ChatGPT as the conversation layer.
@@ -149,6 +151,34 @@ Return structured output from `analyze-patterns.mjs`.
 npm run chat -- patterns
 ```
 
+### `evaluate`
+
+Run the Gemini-backed evaluation pipeline for a JD URL or JD file. This is a
+repo-changing action: it creates a report and tracker update through the normal
+TSV merge flow.
+
+```bash
+npm run chat -- evaluate --url https://example.com/job/123
+npm run chat -- evaluate --jd-file output/jd-example.txt
+```
+
+### `package`
+
+Generate a tailored CV + cover letter package from a JD and optional report
+context.
+
+```bash
+npm run chat -- package --jd-file output/jd-example.txt --report reports/074-oracle-2026-05-07.md --company Oracle --role "Instructional Designer & Learning Developer"
+```
+
+### `apply-prep`
+
+Run evaluation and package generation in one step.
+
+```bash
+npm run chat -- apply-prep --url https://example.com/job/123
+```
+
 ### `quick-apply`
 
 Return the current general-use resume and cover-letter artifact paths from
@@ -231,11 +261,10 @@ It is good for:
 - quick-apply artifact lookup
 - verification
 - pattern summaries
+- Gemini-backed evaluation orchestration
+- package generation orchestration
 
 It does NOT replace the full AI evaluation pipeline for:
-- generating new evaluation reports from scratch
-- writing tailored CV briefs
-- drafting fresh cover letters
 - running application strategy autonomously
 
 Those still need an agent that can operate the repo and reason carefully over

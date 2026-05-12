@@ -24,6 +24,7 @@ import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from '
 import { dirname, join, resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
+import { logAction } from './repo-ops-lib.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const APPS_FILE = join(ROOT, 'data', 'applications.md');
@@ -591,6 +592,9 @@ function buildHelp() {
       { action: 'applied', description: 'Alias for tracker --status Applied.' },
       { action: 'evaluated', description: 'Alias for tracker --status Evaluated.' },
       { action: 'shortlist', description: 'Heuristic triage of inbox items into shortlist, review, and reject buckets. Optional --include-issues.' },
+      { action: 'evaluate', description: 'Run the Gemini-backed evaluation pipeline for a JD URL or file. Supports --url, --jd-file, and optional --with-package.' },
+      { action: 'package', description: 'Generate a tailored CV + cover letter package from a JD file and optional report context.' },
+      { action: 'apply-prep', description: 'Evaluate a role and generate the tailored package in one step.' },
       { action: 'verify', description: 'Run verify-pipeline.mjs and return pass/fail with captured output.' },
       { action: 'sync-check', description: 'Run cv-sync-check.mjs and return pass/fail with captured output.' },
       { action: 'project-profile', description: 'Generate and return the ChatGPT-friendly markdown profile mirror.' },
@@ -638,6 +642,44 @@ async function main() {
         parseScanHistory(),
         { includeIssues: Boolean(parsed.flags['include-issues']) }
       ),
+    };
+  } else if (action === 'evaluate' || action === 'apply-prep') {
+    const scriptArgs = [];
+    if (parsed.flags.url) scriptArgs.push('--url', String(parsed.flags.url));
+    if (parsed.flags['jd-file']) scriptArgs.push('--jd-file', String(parsed.flags['jd-file']));
+    if (parsed.flags.text) scriptArgs.push('--text', String(parsed.flags.text));
+    if (parsed.flags['with-package'] || action === 'apply-prep') scriptArgs.push('--with-package');
+    const run = runNodeScript('gemini-auto-pipeline.mjs', scriptArgs);
+    result = run.ok ? {
+      action,
+      ok: true,
+      ...JSON.parse(run.stdout),
+    } : {
+      action,
+      ok: false,
+      exit_code: run.status,
+      stdout: run.stdout.trim(),
+      stderr: run.stderr.trim(),
+    };
+  } else if (action === 'package') {
+    const scriptArgs = [];
+    if (parsed.flags['jd-file']) scriptArgs.push('--jd-file', String(parsed.flags['jd-file']));
+    if (parsed.flags.text) scriptArgs.push('--text', String(parsed.flags.text));
+    if (parsed.flags.report) scriptArgs.push('--report', String(parsed.flags.report));
+    if (parsed.flags.company) scriptArgs.push('--company', String(parsed.flags.company));
+    if (parsed.flags.role) scriptArgs.push('--role', String(parsed.flags.role));
+    if (parsed.flags.url) scriptArgs.push('--url', String(parsed.flags.url));
+    const run = runNodeScript('gemini-package.mjs', scriptArgs);
+    result = run.ok ? {
+      action,
+      ok: true,
+      ...JSON.parse(run.stdout),
+    } : {
+      action,
+      ok: false,
+      exit_code: run.status,
+      stdout: run.stdout.trim(),
+      stderr: run.stderr.trim(),
     };
   } else if (action === 'verify') {
     const run = runNodeScript('verify-pipeline.mjs');
@@ -766,6 +808,13 @@ async function main() {
     console.error(`Unknown action "${action}". Run: node chat-ops.mjs help`);
     process.exit(1);
   }
+
+  logAction({
+    actor: 'chat-ops',
+    action,
+    flags: parsed.flags,
+    ok: result?.ok !== false,
+  });
 
   console.log(JSON.stringify(result, null, 2));
 }
