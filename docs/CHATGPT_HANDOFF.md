@@ -12,6 +12,8 @@ Give ChatGPT:
    - [AGENTS.md](C:/Users/dntpa/career-ops/AGENTS.md)
    - [CLAUDE.md](C:/Users/dntpa/career-ops/CLAUDE.md)
    - [docs/CODEX.md](C:/Users/dntpa/career-ops/docs/CODEX.md)
+4. The frontend command guide:
+   - [docs/CHATGPT_FRONTEND.md](C:/Users/dntpa/career-ops/docs/CHATGPT_FRONTEND.md)
 
 If you cannot hand over the full repo immediately, at minimum provide:
 
@@ -268,6 +270,19 @@ You do not need to produce a separate “memory file” if ChatGPT has access to
 - [data/applications.md](C:/Users/dntpa/career-ops/data/applications.md)
 
 That is enough to operate effectively if ChatGPT actually follows the repo’s instructions.
+
+## Better Frontend Mode
+
+If ChatGPT has access to this repo through a terminal or workspace tool, prefer
+the explicit command surface:
+
+```bash
+npm run chat -- help
+```
+
+This returns the supported actions for scan, inbox, tracker, quick-apply,
+verification, patterns, and liveness. It is a better default than asking
+ChatGPT to infer workflow from raw files every turn.
 
 ## Optional Extra
 

@@ -6,6 +6,7 @@ All scripts live in the project root as `.mjs` modules and are exposed via `npm 
 
 | Command | Script | Purpose |
 |---------|--------|---------|
+| `npm run chat` | `chat-ops.mjs` | Frontend command surface for ChatGPT/Codex |
 | `npm run doctor` | `doctor.mjs` | Validate setup prerequisites |
 | `npm run verify` | `verify-pipeline.mjs` | Check pipeline data integrity |
 | `npm run normalize` | `normalize-statuses.mjs` | Fix non-canonical statuses |
@@ -30,6 +31,45 @@ npm run doctor
 ```
 
 **Exit codes:** `0` all checks passed, `1` one or more checks failed (fix messages printed).
+
+---
+
+## chat
+
+Thin frontend command surface for ChatGPT/Codex. Wraps the existing repo flow
+with explicit actions and structured JSON output so a conversational frontend
+can operate the repo without improvising tracker, scan, or resume behavior.
+
+```bash
+npm run chat -- help
+npm run chat -- inbox
+npm run chat -- shortlist
+npm run chat -- tracker --status Applied --limit 8
+npm run chat -- scan-safe --mark-expired --shortlist
+npm run chat -- project-profile
+npm run chat -- quick-apply
+```
+
+Primary actions:
+- `help`
+- `scan`
+- `scan-safe`
+- `inbox`
+- `shortlist`
+- `tracker`
+- `applied`
+- `evaluated`
+- `verify`
+- `sync-check`
+- `project-profile`
+- `patterns`
+- `quick-apply`
+- `reports`
+- `liveness`
+
+See [docs/CHATGPT_FRONTEND.md](/G:/My%20Drive/career-ops/docs/CHATGPT_FRONTEND.md) for the recommended frontend workflow.
+
+**Exit codes:** `0` success, `1` invalid action or underlying command failure.
 
 ---
 
