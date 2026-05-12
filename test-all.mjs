@@ -104,6 +104,7 @@ const systemFiles = [
   'modes/oferta.md', 'modes/pdf.md', 'modes/scan.md',
   'templates/states.yml', 'templates/cv-template.html',
   '.claude/skills/career-ops/SKILL.md',
+  '.agents/skills/career-ops/SKILL.md',
 ];
 
 for (const f of systemFiles) {

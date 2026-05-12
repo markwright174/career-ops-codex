@@ -28,6 +28,9 @@ node_modules/
 
 # OS
 .DS_Store
+desktop.ini
+Thumbs.db
+*.lnk
 *.mov
 *.mp4
 
