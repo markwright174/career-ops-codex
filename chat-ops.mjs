@@ -457,12 +457,161 @@ function buildQuickApplySummary() {
   };
 }
 
+function buildProjectProfileSummary() {
+  const run = runNodeScript('generate-project-profile.mjs');
+  if (!run.ok) {
+    return {
+      ok: false,
+      exit_code: run.status,
+      stdout: run.stdout.trim(),
+      stderr: run.stderr.trim(),
+    };
+  }
+
+  try {
+    return {
+      ok: true,
+      ...JSON.parse(run.stdout),
+    };
+  } catch {
+    return {
+      ok: false,
+      exit_code: run.status,
+      stdout: run.stdout.trim(),
+      stderr: run.stderr.trim(),
+    };
+  }
+}
+
 function titleSignalScore(title) {
   const lower = normalizeText(title);
   if (PRIMARY_TITLE_SIGNALS.some((signal) => lower.includes(signal))) return 45;
   if (SECONDARY_TITLE_SIGNALS.some((signal) => lower.includes(signal))) return 35;
   if (ADJACENT_TITLE_SIGNALS.some((signal) => lower.includes(signal))) return 24;
   return 10;
+}
+
+function daysSince(dateString) {
+  if (!dateString) return null;
+  const parsed = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return Math.floor((Date.now() - parsed.getTime()) / 86400000);
+}
+
+function buildAttentionReport(rows) {
+  const applied = rows
+    .filter((row) => row.status === 'Applied')
+    .sort((a, b) => b.num - a.num);
+  const evaluated = rows
+    .filter((row) => row.status === 'Evaluated')
+    .sort((a, b) => (parseScoreValue(b.score) ?? 0) - (parseScoreValue(a.score) ?? 0));
+
+  const attentionNeeded = [];
+  const waiting = [];
+  const packageGaps = [];
+
+  for (const row of [...applied, ...evaluated]) {
+    if (row.pdf !== '✅') {
+      packageGaps.push({
+        num: row.num,
+        company: row.company,
+        role: row.role,
+        status: row.status,
+        pdf: row.pdf,
+        report_path: absoluteReportPath(row.report),
+      });
+    }
+  }
+
+  for (const row of applied) {
+    const ageDays = daysSince(row.date);
+    const note = String(row.notes || '').toLowerCase();
+    const reasons = [];
+
+    if (row.pdf !== '✅') reasons.push('No tailored PDF package is recorded in the tracker.');
+    if (note.includes('recruiter follow-up')) reasons.push('Tracker notes mention recruiter follow-up.');
+    if (note.includes('applied generically')) reasons.push('Tracker notes say the role was applied to generically.');
+    if (note.includes('you replied')) reasons.push('Tracker notes mention that you already replied, so follow-through may matter.');
+    if (ageDays !== null && ageDays >= 14) reasons.push(`Application is ${ageDays} days old with no newer tracker status yet.`);
+
+    const enriched = {
+      num: row.num,
+      date: row.date,
+      age_days: ageDays,
+      company: row.company,
+      role: row.role,
+      score: row.score,
+      pdf: row.pdf,
+      notes: row.notes,
+      report_path: absoluteReportPath(row.report),
+      reasons,
+    };
+
+    if (reasons.length > 0) attentionNeeded.push(enriched);
+    else waiting.push(enriched);
+  }
+
+  return {
+    heuristics: [
+      'Flags missing PDF/package records on Applied or Evaluated rows.',
+      'Flags Applied rows whose notes mention recruiter follow-up or generic application.',
+      'Flags Applied rows older than 14 days with no newer tracker status.',
+    ],
+    attention_needed: attentionNeeded,
+    waiting,
+    evaluated_awaiting_decision: evaluated.map((row) => ({
+      num: row.num,
+      date: row.date,
+      age_days: daysSince(row.date),
+      company: row.company,
+      role: row.role,
+      score: row.score,
+      pdf: row.pdf,
+      notes: row.notes,
+      report_path: absoluteReportPath(row.report),
+    })),
+    package_gaps: packageGaps,
+  };
+}
+
+function buildRepoSummary() {
+  const profile = buildProjectProfileSummary();
+  const trackerRows = parseApplications();
+  const pipelineItems = parsePipeline();
+  const trackerSummary = summarizeTracker(trackerRows, {});
+  const inboxSummary = summarizeInbox(pipelineItems);
+  const attention = buildAttentionReport(trackerRows);
+
+  const inconsistencies = [];
+  if (profile.ok && Array.isArray(profile.inconsistencies)) {
+    inconsistencies.push(...profile.inconsistencies);
+  }
+
+  if (inboxSummary.issue_count > 0) {
+    inconsistencies.push(`${inboxSummary.issue_count} inbox item(s) are already marked as issues.`);
+  }
+
+  return {
+    action: 'repo-summary',
+    generated_at: new Date().toISOString(),
+    profile: profile.ok ? profile : null,
+    tracker: {
+      total: trackerSummary.total,
+      status_counts: trackerSummary.status_counts,
+    },
+    applied: {
+      total: trackerRows.filter((row) => row.status === 'Applied').length,
+      attention_needed: attention.attention_needed,
+      waiting: attention.waiting,
+    },
+    evaluated: {
+      total: trackerRows.filter((row) => row.status === 'Evaluated').length,
+      awaiting_decision: attention.evaluated_awaiting_decision,
+    },
+    inbox: inboxSummary,
+    package_gaps: attention.package_gaps,
+    inconsistencies,
+  };
 }
 
 function historicalPenalty(item, trackerRows, scanHistory) {
@@ -598,6 +747,8 @@ function buildHelp() {
       { action: 'verify', description: 'Run verify-pipeline.mjs and return pass/fail with captured output.' },
       { action: 'sync-check', description: 'Run cv-sync-check.mjs and return pass/fail with captured output.' },
       { action: 'project-profile', description: 'Generate and return the ChatGPT-friendly markdown profile mirror.' },
+      { action: 'repo-summary', description: 'Bundle profile lanes, tracker counts, attention-needed applications, evaluated roles, inbox state, and inconsistencies.' },
+      { action: 'attention-report', description: 'Return read-only attention buckets for applied and evaluated roles, plus package gaps.' },
       { action: 'patterns', description: 'Return structured pattern analysis from analyze-patterns.mjs.' },
       { action: 'quick-apply', description: 'Return the current general-use resume and cover-letter artifact paths from output/.' },
       { action: 'liveness', description: 'Run Playwright liveness on one or more URLs.' },
@@ -700,17 +851,16 @@ async function main() {
       stderr: run.stderr.trim(),
     };
   } else if (action === 'project-profile') {
-    const run = runNodeScript('generate-project-profile.mjs');
-    result = run.ok ? {
+    result = {
       action,
-      ok: true,
-      ...JSON.parse(run.stdout),
-    } : {
+      ...buildProjectProfileSummary(),
+    };
+  } else if (action === 'repo-summary') {
+    result = buildRepoSummary();
+  } else if (action === 'attention-report') {
+    result = {
       action,
-      ok: false,
-      exit_code: run.status,
-      stdout: run.stdout.trim(),
-      stderr: run.stderr.trim(),
+      ...buildAttentionReport(parseApplications()),
     };
   } else if (action === 'patterns') {
     const run = runNodeScript('analyze-patterns.mjs');

@@ -113,6 +113,40 @@ function renderList(items) {
   return items.map((item) => `- ${item}`).join('\n');
 }
 
+function normalizeLane(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function laneMatches(role, lanes) {
+  const normalizedRole = normalizeLane(role);
+  return lanes.some((lane) => {
+    const normalizedLane = normalizeLane(lane);
+    return normalizedLane === normalizedRole
+      || normalizedLane.includes(normalizedRole)
+      || normalizedRole.includes(normalizedLane);
+  });
+}
+
+function detectInconsistencies(primary, secondary, targetRoleRows) {
+  const notes = [];
+
+  for (const row of targetRoleRows) {
+    const fit = String(row.fit || '').toLowerCase();
+    if (fit === 'primary' && !laneMatches(row.archetype, primary)) {
+      notes.push(`Target role framing marks "${row.archetype}" as Primary, but it is not listed in target_roles.primary.`);
+    }
+    if (fit === 'secondary' && !laneMatches(row.archetype, [...primary, ...secondary])) {
+      notes.push(`Target role framing marks "${row.archetype}" as Secondary, but it is not listed in target_roles.primary or target_roles.secondary.`);
+    }
+  }
+
+  return notes;
+}
+
 function main() {
   if (!existsSync(PROFILE_PATH)) {
     console.error(`Missing required file: ${PROFILE_PATH}`);
@@ -149,6 +183,7 @@ function main() {
 
   const primary = Array.isArray(targetRoles.primary) ? targetRoles.primary : [];
   const secondary = Array.isArray(targetRoles.secondary) ? targetRoles.secondary : [];
+  const inconsistencies = detectInconsistencies(primary, secondary, targetRoleRows);
 
   const generatedAt = new Date().toISOString().slice(0, 10);
 
@@ -233,6 +268,50 @@ ${renderList(evidenceBoundaries)}
     primary_roles: primary.length,
     secondary_roles: secondary.length,
     framing_rows: targetRoleRows.length,
+    candidate: {
+      full_name: candidate.full_name || null,
+      location: candidate.location || location.city || null,
+      timezone: location.timezone || null,
+      work_authorization: location.visa_status || null,
+      linkedin: candidate.linkedin || null,
+    },
+    compensation: {
+      target_range: compensation.target_range || null,
+      minimum: compensation.minimum || null,
+      currency: compensation.currency || null,
+      location_flexibility: compensation.location_flexibility || null,
+    },
+    location_policy: {
+      remote_preferred: true,
+      hybrid_outside_houston_scores_down: true,
+      onsite_outside_houston_usually_skip: true,
+    },
+    target_lanes: {
+      primary,
+      secondary,
+    },
+    target_role_rows: targetRoleRows,
+    positioning: {
+      headline: narrative.headline || null,
+      exit_story: narrative.exit_story || null,
+      superpowers: Array.isArray(narrative.superpowers) ? narrative.superpowers : [],
+      cross_cutting_advantages: crossCutting,
+    },
+    scoring_preferences: {
+      no_ic_penalty_for_strong_fit: true,
+      near_floor_roles_can_still_be_considered: true,
+      role_level_flexibility: preferences.role_level_flexibility || null,
+      individual_contributor_rule: preferences.individual_contributor_rule || null,
+      low_comp_exception_rule: preferences.low_comp_exception_rule || null,
+    },
+    adaptive_framing: framingRows,
+    verified_strengths: compact([
+      ...aiWorkflow,
+      ...healthcareDomain,
+      ...toolAdditions,
+    ]),
+    evidence_boundaries: evidenceBoundaries,
+    inconsistencies,
   }, null, 2));
 }
 

@@ -1,6 +1,6 @@
 # Project Profile
 
-_Generated from `config/profile.yml`, `modes/_profile.md`, and `article-digest.md` on 2026-05-12. Regenerate with `node generate-project-profile.mjs` after profile changes._
+_Generated from `config/profile.yml`, `modes/_profile.md`, and `article-digest.md` on 2026-05-13. Regenerate with `node generate-project-profile.mjs` after profile changes._
 
 ## Identity
 

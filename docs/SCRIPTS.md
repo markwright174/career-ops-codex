@@ -52,6 +52,8 @@ npm run chat -- shortlist
 npm run chat -- tracker --status Applied --limit 8
 npm run chat -- scan-safe --mark-expired --shortlist
 npm run chat -- project-profile
+npm run chat -- repo-summary
+npm run chat -- attention-report
 npm run chat -- quick-apply
 ```
 
@@ -67,6 +69,8 @@ Primary actions:
 - `verify`
 - `sync-check`
 - `project-profile`
+- `repo-summary`
+- `attention-report`
 - `patterns`
 - `quick-apply`
 - `reports`

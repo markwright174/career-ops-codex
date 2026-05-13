@@ -23,6 +23,8 @@ The MCP layer exposes named tools such as:
 - `verify_pipeline`
 - `check_liveness`
 - `show_project_profile`
+- `show_repo_summary`
+- `show_attention_report`
 - `evaluate_role`
 - `prepare_package`
 - `prepare_application`

@@ -336,10 +336,30 @@ const TOOLS = [
     name: 'show_project_profile',
     title: 'Show Project Profile',
     kind: 'read',
-    description: 'Generate and return the ChatGPT-friendly profile mirror.',
+    description: 'Generate and return the ChatGPT-friendly profile mirror with actual lanes, policy fields, and inconsistencies.',
     inputSchema: objectSchema({}),
     invoke() {
       return { action: 'project-profile' };
+    },
+  },
+  {
+    name: 'show_repo_summary',
+    title: 'Show Repo Summary',
+    kind: 'read',
+    description: 'Return a bundled read-only summary of profile lanes, tracker state, applied attention, evaluated roles, inbox state, package gaps, and inconsistencies.',
+    inputSchema: objectSchema({}),
+    invoke() {
+      return { action: 'repo-summary' };
+    },
+  },
+  {
+    name: 'show_attention_report',
+    title: 'Show Attention Report',
+    kind: 'read',
+    description: 'Return read-only attention buckets for applied roles, evaluated roles awaiting decision, and package gaps.',
+    inputSchema: objectSchema({}),
+    invoke() {
+      return { action: 'attention-report' };
     },
   },
   {
