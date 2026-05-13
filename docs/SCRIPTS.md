@@ -8,6 +8,8 @@ All scripts live in the project root as `.mjs` modules and are exposed via `npm 
 |---------|--------|---------|
 | `npm run chat` | `chat-ops.mjs` | Frontend command surface for ChatGPT/Codex |
 | `npm run bridge` | `bridge-server.mjs` | Local JSON bridge for MCP/tunnel frontends |
+| `npm run mcp` | `mcp-server.mjs` | Narrow MCP server for ChatGPT developer mode / remote MCP clients |
+| `npm run mcp:smoke` | `mcp-smoke-test.mjs` | Local MCP smoke test for initialize, tools/list, and tools/call |
 | `npm run doctor` | `doctor.mjs` | Validate setup prerequisites |
 | `npm run verify` | `verify-pipeline.mjs` | Check pipeline data integrity |
 | `npm run normalize` | `normalize-statuses.mjs` | Fix non-canonical statuses |
@@ -75,6 +77,8 @@ Primary actions:
 
 See [docs/CHATGPT_FRONTEND.md](/G:/My%20Drive/career-ops/docs/CHATGPT_FRONTEND.md) for the recommended frontend workflow.
 See [docs/BRIDGE.md](/G:/My%20Drive/career-ops/docs/BRIDGE.md) for the local bridge architecture.
+See [docs/MCP.md](/G:/My%20Drive/career-ops/docs/MCP.md) for the MCP server setup.
+See [docs/CHATGPT_MCP_SETUP.md](/G:/My%20Drive/career-ops/docs/CHATGPT_MCP_SETUP.md) for the end-to-end ChatGPT/tunnel setup path.
 
 **Exit codes:** `0` success, `1` invalid action or underlying command failure.
 
@@ -118,6 +122,69 @@ Security defaults:
 - rate-limits requests and suppresses raw child-process output in remote errors
 
 **Exit codes:** long-running server process.
+
+---
+
+## mcp
+
+Narrow MCP server that exposes named Career-Ops tools to ChatGPT developer mode
+or another remote MCP client. The MCP layer maps onto the existing `chat-ops`
+actions rather than creating a second workflow.
+
+```bash
+npm run mcp
+```
+
+Optional bearer token for manual/private clients:
+
+```bash
+set CAREER_OPS_MCP_TOKEN=replace-with-a-long-random-secret
+npm run mcp
+```
+
+Optional write enablement:
+
+```bash
+set CAREER_OPS_MCP_ALLOW_WRITE=1
+```
+
+Security defaults:
+- binds to `127.0.0.1` unless `CAREER_OPS_MCP_HOST` is overridden
+- write tools are disabled unless `CAREER_OPS_MCP_ALLOW_WRITE=1`
+- bearer token auth is optional
+- rate-limits requests in memory
+
+See [docs/MCP.md](/G:/My%20Drive/career-ops/docs/MCP.md) for setup notes and
+ChatGPT compatibility caveats.
+
+**Exit codes:** long-running server process.
+
+---
+
+## mcp:smoke
+
+Tiny local MCP test client for validating the Career-Ops MCP endpoint before
+you involve ChatGPT or a tunnel.
+
+```bash
+npm run mcp:smoke
+```
+
+Optional flags:
+
+```bash
+npm run mcp:smoke -- --token your-secret
+npm run mcp:smoke -- --tool show_tracker --args "{\"status\":\"Applied\",\"limit\":5}"
+```
+
+By default it tests:
+
+- `GET /health`
+- `initialize`
+- `tools/list`
+- `tools/call`
+
+**Exit codes:** `0` success, `1` request or parsing failure.
 
 ---
 

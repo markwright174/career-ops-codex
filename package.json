@@ -5,6 +5,8 @@
   "scripts": {
     "chat": "node chat-ops.mjs",
     "bridge": "node bridge-server.mjs",
+    "mcp": "node mcp-server.mjs",
+    "mcp:smoke": "node mcp-smoke-test.mjs",
     "doctor": "node doctor.mjs",
     "verify": "node verify-pipeline.mjs",
     "normalize": "node normalize-statuses.mjs",
