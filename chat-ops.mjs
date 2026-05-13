@@ -532,7 +532,7 @@ function buildAttentionReport(rows) {
     if (note.includes('recruiter follow-up')) reasons.push('Tracker notes mention recruiter follow-up.');
     if (note.includes('applied generically')) reasons.push('Tracker notes say the role was applied to generically.');
     if (note.includes('you replied')) reasons.push('Tracker notes mention that you already replied, so follow-through may matter.');
-    if (ageDays !== null && ageDays >= 14) reasons.push(`Application is ${ageDays} days old with no newer tracker status yet.`);
+    if (ageDays !== null && ageDays >= 28) reasons.push(`Application is ${ageDays} days old with no newer tracker status yet.`);
 
     const enriched = {
       num: row.num,
@@ -555,7 +555,7 @@ function buildAttentionReport(rows) {
     heuristics: [
       'Flags missing PDF/package records on Applied or Evaluated rows.',
       'Flags Applied rows whose notes mention recruiter follow-up or generic application.',
-      'Flags Applied rows older than 14 days with no newer tracker status.',
+      'Flags Applied rows older than 28 days with no newer tracker status.',
     ],
     attention_needed: attentionNeeded,
     waiting,

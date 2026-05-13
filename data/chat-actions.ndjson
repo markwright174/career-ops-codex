@@ -30,3 +30,14 @@
 {"timestamp":"2026-05-13T14:35:08.547Z","actor":"chat-ops","action":"project-profile","flags":{},"ok":true}
 {"timestamp":"2026-05-13T14:35:09.422Z","actor":"chat-ops","action":"repo-summary","flags":{},"ok":true}
 {"timestamp":"2026-05-13T14:35:36.100Z","actor":"chat-ops","action":"help","flags":{},"ok":true}
+{"timestamp":"2026-05-13T14:51:25.566Z","actor":"chat-ops","action":"inbox","flags":{},"ok":true}
+{"timestamp":"2026-05-13T14:51:25.622Z","actor":"mcp-server","action":"mcp:show_inbox","chat_ops_action":"inbox","tool_kind":"read","args":{},"ok":true,"exit_code":0}
+{"timestamp":"2026-05-13T14:57:05.066Z","actor":"chat-ops","action":"repo-summary","flags":{},"ok":true}
+{"timestamp":"2026-05-13T14:57:05.095Z","actor":"mcp-server","action":"mcp:show_repo_summary","chat_ops_action":"repo-summary","tool_kind":"read","args":{},"ok":true,"exit_code":0}
+{"timestamp":"2026-05-13T14:57:32.268Z","actor":"chat-ops","action":"attention-report","flags":{},"ok":true}
+{"timestamp":"2026-05-13T14:57:32.294Z","actor":"mcp-server","action":"mcp:show_attention_report","chat_ops_action":"attention-report","tool_kind":"read","args":{},"ok":true,"exit_code":0}
+{"timestamp":"2026-05-13T15:00:23.379Z","actor":"chat-ops","action":"attention-report","flags":{},"ok":true}
+{"timestamp":"2026-05-13T15:00:23.814Z","actor":"chat-ops","action":"project-profile","flags":{},"ok":true}
+{"timestamp":"2026-05-13T15:00:23.836Z","actor":"chat-ops","action":"repo-summary","flags":{},"ok":true}
+{"timestamp":"2026-05-13T15:00:42.913Z","actor":"chat-ops","action":"attention-report","flags":{},"ok":true}
+{"timestamp":"2026-05-13T15:00:43.368Z","actor":"chat-ops","action":"repo-summary","flags":{},"ok":true}

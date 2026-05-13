@@ -25,13 +25,14 @@ _Generated from `config/profile.yml`, `modes/_profile.md`, and `article-digest.m
 ### Primary
 - Instructional Design Manager
 - Senior Learning Experience Designer
+- Senior Instructional Designer
 
 ### Secondary
-- Senior Instructional Designer
 - Customer Education
 - Customer Education Manager
 - Senior Manager, Customer Education
 - Technical Learning Design and Development
+- Learning and Development Manager
 
 ### Target Role Framing
 - Instructional Design Manager (Primary): A learning leader who can manage instructional designers, coordinate stakeholders, and deliver quality learning across programs
