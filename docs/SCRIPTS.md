@@ -10,6 +10,7 @@ All scripts live in the project root as `.mjs` modules and are exposed via `npm 
 | `npm run bridge` | `bridge-server.mjs` | Local JSON bridge for MCP/tunnel frontends |
 | `npm run mcp` | `mcp-server.mjs` | Narrow MCP server for ChatGPT developer mode / remote MCP clients |
 | `npm run mcp:smoke` | `mcp-smoke-test.mjs` | Local MCP smoke test for initialize, tools/list, and tools/call |
+| `powershell -File .\start-mcp-readonly.ps1` | `start-mcp-readonly.ps1` | Start the localhost-bound read-only MCP server for Apache/tunnel fronting |
 | `npm run doctor` | `doctor.mjs` | Validate setup prerequisites |
 | `npm run verify` | `verify-pipeline.mjs` | Check pipeline data integrity |
 | `npm run normalize` | `normalize-statuses.mjs` | Fix non-canonical statuses |
@@ -189,6 +190,27 @@ By default it tests:
 - `tools/call`
 
 **Exit codes:** `0` success, `1` request or parsing failure.
+
+---
+
+## start-mcp-readonly
+
+Starts the localhost-bound, read-only MCP server in a hidden PowerShell
+process. This is the preferred local backend when Apache/XAMPP fronts the MCP
+endpoint.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-mcp-readonly.ps1
+```
+
+It:
+
+- binds MCP to `127.0.0.1`
+- keeps write tools disabled
+- leaves token auth unset because Apache or a local tunnel is expected to sit
+  in front of it
+
+See [docs/APACHE_MCP_SETUP.md](/G:/My%20Drive/career-ops/docs/APACHE_MCP_SETUP.md).
 
 ---
 

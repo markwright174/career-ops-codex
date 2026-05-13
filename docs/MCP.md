@@ -47,6 +47,10 @@ Health endpoint:
 http://127.0.0.1:8790/health
 ```
 
+If you already run Apache/XAMPP every day, you can front the local MCP server
+through Apache instead of tunneling the raw Node port directly. See
+[docs/APACHE_MCP_SETUP.md](/G:/My%20Drive/career-ops/docs/APACHE_MCP_SETUP.md).
+
 ## Security Defaults
 
 - binds to `127.0.0.1` by default
