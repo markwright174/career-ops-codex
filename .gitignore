@@ -27,6 +27,7 @@ modes/_profile.md
 node_modules/
 .env
 .env.local
+data/chat-actions.ndjson
 
 # OS
 .DS_Store

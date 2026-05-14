@@ -22,6 +22,7 @@ const PROFILE_PATH = join(ROOT, 'config', 'profile.yml');
 const USER_PROFILE_PATH = join(ROOT, 'modes', '_profile.md');
 const ARTICLE_DIGEST_PATH = join(ROOT, 'article-digest.md');
 const OUTPUT_PATH = join(ROOT, 'docs', 'PROJECT_PROFILE.md');
+const GENERATED_LINE_PATTERN = /^_Generated from .*?_$/m;
 
 function readOptional(path) {
   return existsSync(path) ? readFileSync(path, 'utf-8') : '';
@@ -111,6 +112,13 @@ function compact(values) {
 function renderList(items) {
   if (!items.length) return '- None listed';
   return items.map((item) => `- ${item}`).join('\n');
+}
+
+function normalizeGeneratedContent(content) {
+  return String(content || '')
+    .replace(/\r\n/g, '\n')
+    .replace(GENERATED_LINE_PATTERN, '_Generated from `config/profile.yml`, `modes/_profile.md`, and `article-digest.md` on <date>. Regenerate with `node generate-project-profile.mjs` after profile changes._')
+    .trim();
 }
 
 function normalizeLane(text) {
@@ -260,10 +268,18 @@ ${renderList(evidenceBoundaries)}
 - Never submit applications on the user's behalf.
 `;
 
-  writeFileSync(OUTPUT_PATH, content, 'utf-8');
+  let wrote = true;
+  const existing = existsSync(OUTPUT_PATH) ? readFileSync(OUTPUT_PATH, 'utf-8') : '';
+  if (existing && normalizeGeneratedContent(existing) === normalizeGeneratedContent(content)) {
+    wrote = false;
+  } else {
+    writeFileSync(OUTPUT_PATH, content, 'utf-8');
+  }
+
   console.log(JSON.stringify({
     ok: true,
     output: OUTPUT_PATH,
+    wrote,
     generated_at: generatedAt,
     primary_roles: primary.length,
     secondary_roles: secondary.length,
