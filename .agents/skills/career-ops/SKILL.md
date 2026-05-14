@@ -1,16 +1,17 @@
 ---
 name: career-ops
 description: AI job search command center -- evaluate offers, generate CVs, scan portals, track applications
-user_invocable: true
-args: mode
+arguments: mode # Claude Code specific
+user-invocable: true
 argument-hint: "[scan | deep | pdf | oferta | ofertas | apply | batch | tracker | pipeline | contacto | training | project | interview-prep | update]"
+license: MIT
 ---
 
 # career-ops -- Router
 
 ## Mode Routing
 
-Determine the mode from `{{mode}}`:
+Determine the mode from `$mode`:
 
 | Input | Mode |
 |-------|------|
@@ -20,6 +21,7 @@ Determine the mode from `{{mode}}`:
 | `ofertas` | `ofertas` |
 | `contacto` | `contacto` |
 | `deep` | `deep` |
+| `interview-prep` | `interview-prep` |
 | `pdf` | `pdf` |
 | `training` | `training` |
 | `project` | `project` |
@@ -31,9 +33,9 @@ Determine the mode from `{{mode}}`:
 | `patterns` | `patterns` |
 | `followup` | `followup` |
 
-**Auto-pipeline detection:** If `{{mode}}` is not a known sub-command AND contains JD text (keywords: "responsibilities", "requirements", "qualifications", "about the role", "we're looking for", company name + role) or a URL to a JD, execute `auto-pipeline`.
+**Auto-pipeline detection:** If `$mode` is not a known sub-command AND contains JD text (keywords: "responsibilities", "requirements", "qualifications", "about the role", "we're looking for", company name + role) or a URL to a JD, execute `auto-pipeline`.
 
-If `{{mode}}` is not a sub-command AND doesn't look like a JD, show discovery.
+If `$mode` is not a sub-command AND doesn't look like a JD, show discovery.
 
 ---
 
@@ -51,6 +53,7 @@ Available commands:
   /career-ops ofertas   → Compare and rank multiple offers
   /career-ops contacto  → LinkedIn power move: find contacts + draft message
   /career-ops deep      → Deep research prompt about company
+  /career-ops interview-prep → Generate company-specific interview prep doc
   /career-ops pdf       → PDF only, ATS-optimized CV
   /career-ops training  → Evaluate course/cert against North Star
   /career-ops project   → Evaluate portfolio project idea
@@ -79,7 +82,7 @@ Applies to: `auto-pipeline`, `oferta`, `ofertas`, `pdf`, `contacto`, `apply`, `p
 ### Standalone modes (only their mode file):
 Read `modes/{mode}.md`
 
-Applies to: `tracker`, `deep`, `training`, `project`, `patterns`, `followup`
+Applies to: `tracker`, `deep`, `interview-prep`, `training`, `project`, `patterns`, `followup`
 
 ### Modes delegated to subagent:
 For `scan`, `apply` (with Playwright), and `pipeline` (3+ URLs): launch as Agent with the content of `_shared.md` + `modes/{mode}.md` injected into the subagent prompt.

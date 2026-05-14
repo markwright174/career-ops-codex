@@ -83,3 +83,14 @@ https://<your-public-host>/career-ops-mcp
 
 That way Apache remains the stable shareable surface, while the Node MCP
 process stays localhost-bound.
+
+## OAuth Metadata Proxy Path
+
+When OAuth mode is enabled on the MCP server, Apache should also expose the
+protected-resource metadata path:
+
+```text
+/.well-known/oauth-protected-resource/career-ops-mcp
+```
+
+This repo's Apache include already proxies that path to the local Node server.

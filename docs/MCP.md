@@ -57,6 +57,7 @@ through Apache instead of tunneling the raw Node port directly. See
 - write tools are disabled unless you explicitly enable them
 - optional bearer token support for manual/private clients
 - in-memory request rate limiting
+- optional OAuth resource-server mode for ChatGPT / remote MCP clients
 
 Optional bearer token:
 
@@ -69,6 +70,42 @@ Enable write tools only intentionally:
 
 ```powershell
 $env:CAREER_OPS_MCP_ALLOW_WRITE = '1'
+```
+
+## OAuth / Auth0 Mode
+
+Career-Ops MCP can also act as an OAuth-protected resource server. When the
+following environment variables are set, the MCP endpoint requires bearer
+tokens and advertises authorization discovery metadata for MCP clients:
+
+```powershell
+$env:CAREER_OPS_MCP_PUBLIC_BASE_URL = 'https://mcp.example.com'
+$env:CAREER_OPS_MCP_PUBLIC_PATH = '/career-ops-mcp'
+$env:CAREER_OPS_MCP_OAUTH_ISSUER = 'https://auth.example.com/'
+$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = 'https://mcp.example.com/'
+```
+
+Optional scopes:
+
+```powershell
+$env:CAREER_OPS_MCP_READ_SCOPE = 'career_ops:read'
+$env:CAREER_OPS_MCP_WRITE_SCOPE = 'career_ops:write'
+```
+
+What this enables:
+
+- `/.well-known/oauth-protected-resource/...` metadata for MCP discovery
+- bearer-token validation against the issuer's OpenID configuration and JWKS
+- read-scope enforcement for read tools
+- write-scope enforcement for write tools
+
+This is designed to work well with Auth0 custom domains, for example:
+
+```powershell
+$env:CAREER_OPS_MCP_PUBLIC_BASE_URL = 'https://mcp.marklwright.com'
+$env:CAREER_OPS_MCP_PUBLIC_PATH = '/career-ops-mcp'
+$env:CAREER_OPS_MCP_OAUTH_ISSUER = 'https://auth.marklwright.com/'
+$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = 'https://mcp.marklwright.com/'
 ```
 
 ## ChatGPT Compatibility Note

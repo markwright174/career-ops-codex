@@ -4,6 +4,13 @@ import http from 'http';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { ROOT, logAction, runNodeScript } from './repo-ops-lib.mjs';
+import {
+  buildAuthChallengeHeaders,
+  buildOAuthConfig,
+  buildProtectedResourceMetadata,
+  getBearerToken,
+  validateAccessToken,
+} from './mcp-oauth.mjs';
 
 const HOST = process.env.CAREER_OPS_MCP_HOST || '127.0.0.1';
 const PORT = parseInt(process.env.CAREER_OPS_MCP_PORT || '8790', 10);
@@ -24,6 +31,8 @@ const LATEST_PROTOCOL_VERSION = '2025-11-25';
 
 const VERSION = readFileSync(join(ROOT, 'VERSION'), 'utf-8').trim();
 const rateLimitState = new Map();
+const OAUTH = buildOAuthConfig(process.env);
+const AUTH_MODE = [TOKEN ? 'bearer' : null, OAUTH.enabled ? 'oauth' : null].filter(Boolean).join('+') || 'none';
 
 function sendJson(res, status, body, extraHeaders = {}) {
   res.writeHead(status, {
@@ -495,6 +504,15 @@ async function executeTool(toolName, args = {}) {
   return toolSuccess(toolName, run.payload);
 }
 
+async function authorizeRequest(req, requiredScope) {
+  if (!OAUTH.enabled) {
+    return { ok: true, authMode: 'disabled', claims: null, scopes: [] };
+  }
+
+  const token = getBearerToken(req);
+  return validateAccessToken(token, OAUTH, requiredScope);
+}
+
 async function handleRpcRequest(message, req) {
   if (!message || typeof message !== 'object' || Array.isArray(message)) {
     return makeError(null, -32600, 'Invalid Request');
@@ -550,6 +568,20 @@ async function handleRpcRequest(message, req) {
     if (args !== undefined && (typeof args !== 'object' || args === null || Array.isArray(args))) {
       return makeError(id, -32602, 'Invalid params: tool arguments must be an object.');
     }
+    const tool = TOOL_MAP.get(name);
+    if (!tool) {
+      return makeError(id, -32602, `Unknown tool "${name}".`);
+    }
+
+    const requiredScope = tool.kind === 'write' ? OAUTH.writeScope : OAUTH.readScope;
+    const auth = await authorizeRequest(req, requiredScope);
+    if (!auth.ok) {
+      return makeError(id, auth.status === 403 ? -32003 : -32001, auth.errorDescription || 'Unauthorized', {
+        oauth_error: auth.error,
+        oauth_required_scope: requiredScope,
+      });
+    }
+
     const result = await executeTool(name, args || {});
     return isNotification ? null : makeResult(id, result);
   }
@@ -623,6 +655,13 @@ async function handleMcp(req, res) {
 }
 
 const server = http.createServer(async (req, res) => {
+  if ((req.url || '') === '/.well-known/oauth-protected-resource' || (req.url || '') === OAUTH.metadataPath) {
+    if (!OAUTH.enabled) {
+      return sendJson(res, 404, { error: 'OAuth not enabled' });
+    }
+    return sendJson(res, 200, buildProtectedResourceMetadata(OAUTH));
+  }
+
   if ((req.url || '') === '/health') {
     if (!isAuthorized(req)) {
       res.setHeader('WWW-Authenticate', 'Bearer');
@@ -634,7 +673,8 @@ const server = http.createServer(async (req, res) => {
       host: HOST,
       port: PORT,
       write_tools_enabled: ALLOW_WRITE,
-      auth_mode: TOKEN ? 'bearer' : 'none',
+      oauth_enabled: OAUTH.enabled,
+      auth_mode: AUTH_MODE,
       endpoint: `http://${HOST}:${PORT}/mcp`,
     });
   }
@@ -645,6 +685,21 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method !== 'POST') {
     return sendJson(res, 405, makeError(null, -32000, 'Method not allowed'));
+  }
+
+  if (OAUTH.enabled) {
+    const auth = await authorizeRequest(req, OAUTH.readScope);
+    if (!auth.ok) {
+      return sendJson(
+        res,
+        auth.status || 401,
+        { error: auth.errorDescription || 'Unauthorized', oauth_error: auth.error },
+        buildAuthChallengeHeaders(OAUTH, {
+          error: auth.error,
+          error_description: auth.errorDescription,
+        })
+      );
+    }
   }
 
   try {
@@ -663,7 +718,9 @@ server.listen(PORT, HOST, () => {
     service: 'career-ops-mcp',
     host: HOST,
     port: PORT,
-    auth_mode: TOKEN ? 'bearer' : 'none',
+    auth_mode: AUTH_MODE,
+    oauth_enabled: OAUTH.enabled,
+    oauth_metadata_url: OAUTH.metadataUrl,
     write_tools_enabled: ALLOW_WRITE,
     endpoint: `http://${HOST}:${PORT}/mcp`,
     supported_protocol_versions: SUPPORTED_PROTOCOL_VERSIONS,
