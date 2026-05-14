@@ -34,6 +34,11 @@ Per OpenAI’s current docs:
 
 That means your local server must be exposed remotely before ChatGPT can use it.
 
+For public-repo hygiene, keep your real MCP/Auth hostnames in an ignored local
+file instead of hardcoding them into tracked scripts. This repo includes
+[mcp-oauth-local.example.ps1](/G:/My%20Drive/career-ops/mcp-oauth-local.example.ps1)
+as the template for that local config.
+
 ## Recommended Rollout
 
 Use this in phases instead of going straight to full write-enabled remote use.

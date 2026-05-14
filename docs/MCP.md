@@ -78,6 +78,10 @@ $env:CAREER_OPS_MCP_ALLOW_WRITE = '1'
 Or use the dedicated OAuth startup helpers in this repo:
 
 ```powershell
+# one-time local setup
+Copy-Item .\mcp-oauth-local.example.ps1 .\mcp-oauth-local.ps1
+# then edit mcp-oauth-local.ps1 with your real domains
+
 powershell -ExecutionPolicy Bypass -File .\start-mcp-oauth-readonly.ps1
 powershell -ExecutionPolicy Bypass -File .\start-mcp-oauth-write.ps1
 ```
@@ -112,10 +116,10 @@ What this enables:
 This is designed to work well with Auth0 custom domains, for example:
 
 ```powershell
-$env:CAREER_OPS_MCP_PUBLIC_BASE_URL = 'https://mcp.marklwright.com'
+$env:CAREER_OPS_MCP_PUBLIC_BASE_URL = 'https://mcp.example.com'
 $env:CAREER_OPS_MCP_PUBLIC_PATH = '/career-ops-mcp'
-$env:CAREER_OPS_MCP_OAUTH_ISSUER = 'https://auth.marklwright.com/'
-$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = 'https://mcp.marklwright.com/'
+$env:CAREER_OPS_MCP_OAUTH_ISSUER = 'https://auth.example.com/'
+$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = 'https://mcp.example.com/'
 ```
 
 ## ChatGPT Compatibility Note

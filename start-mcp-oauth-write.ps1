@@ -4,6 +4,11 @@ $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $port = if ($env:CAREER_OPS_MCP_PORT) { $env:CAREER_OPS_MCP_PORT } else { '8790' }
 $healthUrl = "http://127.0.0.1:$port/health"
 $metadataUrl = "http://127.0.0.1:$port/.well-known/oauth-protected-resource/career-ops-mcp"
+$localConfigPath = Join-Path $repoRoot 'mcp-oauth-local.ps1'
+
+if (Test-Path $localConfigPath) {
+    . $localConfigPath
+}
 
 function Test-CareerOpsHealth {
     param([string]$Url)
@@ -38,12 +43,24 @@ function Test-CareerOpsOAuthMetadata {
         $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 $Url
         return (
             $response.StatusCode -eq 200 -and
-            $response.Content -match '"authorization_servers"\s*:' -and
-            $response.Content -match 'auth\.marklwright\.com'
+            $response.Content -match '"authorization_servers"\s*:'
         )
     } catch {
         return $false
     }
+}
+
+function Get-RequiredEnvValue {
+    param(
+        [string]$Name,
+        [string]$Example
+    )
+
+    $value = [Environment]::GetEnvironmentVariable($Name)
+    if (-not $value) {
+        throw "Missing required environment variable $Name. Set it in the current session or in mcp-oauth-local.ps1 (example: $Example)."
+    }
+    return $value
 }
 
 function Get-PortOwnerPid {
@@ -85,10 +102,10 @@ if ($existingPid) {
 $env:CAREER_OPS_MCP_HOST = '127.0.0.1'
 $env:CAREER_OPS_MCP_ALLOW_WRITE = '1'
 $env:CAREER_OPS_MCP_TOKEN = ''
-$env:CAREER_OPS_MCP_PUBLIC_BASE_URL = 'https://mcp.marklwright.com'
+$env:CAREER_OPS_MCP_PUBLIC_BASE_URL = Get-RequiredEnvValue -Name 'CAREER_OPS_MCP_PUBLIC_BASE_URL' -Example 'https://mcp.example.com'
 $env:CAREER_OPS_MCP_PUBLIC_PATH = '/career-ops-mcp'
-$env:CAREER_OPS_MCP_OAUTH_ISSUER = 'https://auth.marklwright.com/'
-$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = 'https://mcp.marklwright.com/'
+$env:CAREER_OPS_MCP_OAUTH_ISSUER = Get-RequiredEnvValue -Name 'CAREER_OPS_MCP_OAUTH_ISSUER' -Example 'https://auth.example.com/'
+$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = Get-RequiredEnvValue -Name 'CAREER_OPS_MCP_OAUTH_AUDIENCE' -Example 'https://mcp.example.com/'
 $env:CAREER_OPS_MCP_READ_SCOPE = '__none__'
 $env:CAREER_OPS_MCP_WRITE_SCOPE = 'career_ops:write'
 
@@ -100,7 +117,7 @@ $nodeProc = Start-Process powershell `
 for ($i = 0; $i -lt 8; $i++) {
     Start-Sleep -Seconds 1
     if ((Test-CareerOpsWriteHealth -Url $healthUrl) -and (Test-CareerOpsOAuthMetadata -Url $metadataUrl)) {
-        Write-Output "career-ops OAuth write MCP started on https://mcp.marklwright.com/career-ops-mcp (local PID $($nodeProc.Id))"
+        Write-Output "career-ops OAuth write MCP started on $($env:CAREER_OPS_MCP_PUBLIC_BASE_URL)$($env:CAREER_OPS_MCP_PUBLIC_PATH) (local PID $($nodeProc.Id))"
         exit 0
     }
 }
