@@ -34,6 +34,32 @@ const PROFILE_FILE = join(ROOT, 'config', 'profile.yml');
 const OUTPUT_DIR = join(ROOT, 'output');
 const REPORTS_DIR = join(ROOT, 'reports');
 const TRACKER_ADDITIONS_DIR = join(ROOT, 'batch', 'tracker-additions');
+const BLOCKED_READ_BASENAMES = new Set([
+  '.env',
+  '.env.local',
+]);
+const BLOCKED_READ_SEGMENTS = new Set([
+  '.git',
+  'node_modules',
+]);
+const TEXT_READ_EXTENSIONS = new Set([
+  '',
+  '.md',
+  '.txt',
+  '.json',
+  '.yml',
+  '.yaml',
+  '.mjs',
+  '.js',
+  '.ts',
+  '.tsx',
+  '.html',
+  '.css',
+  '.ps1',
+  '.toml',
+  '.tsv',
+  '.csv',
+]);
 const PRIMARY_TITLE_SIGNALS = [
   'instructional design manager',
   'senior learning experience designer',
@@ -164,6 +190,38 @@ function parseSimpleYaml(content) {
   return root;
 }
 
+function extnameSafe(path) {
+  const idx = path.lastIndexOf('.');
+  if (idx <= 0) return '';
+  return path.slice(idx).toLowerCase();
+}
+
+function isBlockedReadPath(path) {
+  const normalized = resolve(path);
+  const relative = normalized.slice(ROOT.length).replace(/^[\\/]+/, '');
+  const parts = relative.split(/[\\/]+/).filter(Boolean);
+  if (BLOCKED_READ_BASENAMES.has(basename(normalized).toLowerCase())) return true;
+  return parts.some((part) => BLOCKED_READ_SEGMENTS.has(part.toLowerCase()));
+}
+
+function resolveReadableRepoPath(inputPath = '.') {
+  const resolved = resolve(ROOT, String(inputPath || '.'));
+  if (!resolved.startsWith(ROOT)) {
+    throw new Error(`Path "${inputPath}" resolves outside the repo root.`);
+  }
+  if (isBlockedReadPath(resolved)) {
+    throw new Error(`Path "${inputPath}" is blocked from MCP read access.`);
+  }
+  return resolved;
+}
+
+function ensureReadableTextFile(path) {
+  const ext = extnameSafe(path);
+  if (!TEXT_READ_EXTENSIONS.has(ext)) {
+    throw new Error(`File "${path}" is not an allowed text-readable type.`);
+  }
+}
+
 function safeJsonParse(text, label) {
   try {
     return JSON.parse(String(text || ''));
@@ -210,6 +268,65 @@ function parseBaseCvExperienceKeys() {
   }
 
   return keys;
+}
+
+function parseBaseCvChronology() {
+  if (!existsSync(PATHS.cv)) {
+    return [];
+  }
+
+  const lines = readFileSync(PATHS.cv, 'utf-8').split(/\r?\n/);
+  const rows = [];
+  let inExperience = false;
+  let currentRole = null;
+
+  function flushCurrentRole() {
+    if (currentRole && currentRole.company && currentRole.role) {
+      rows.push({
+        role: currentRole.role,
+        company: currentRole.company,
+        period: currentRole.period,
+        bullets: currentRole.bullets.slice(),
+      });
+    }
+    currentRole = null;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.startsWith('## ')) {
+      if (inExperience) {
+        flushCurrentRole();
+      }
+      inExperience = /^##\s+Professional Experience\s*$/i.test(line.trim());
+      continue;
+    }
+    if (!inExperience) continue;
+
+    const roleMatch = line.match(/^###\s+(.+?)\s*$/);
+    if (roleMatch) {
+      flushCurrentRole();
+      currentRole = { role: roleMatch[1].trim(), company: '', period: '', bullets: [] };
+      continue;
+    }
+
+    const companyMatch = line.match(/^\*\*(.+?)\*\*\s*\|\s*(.+?)\s*$/);
+    if (companyMatch && currentRole) {
+      currentRole.company = companyMatch[1].trim();
+      currentRole.period = companyMatch[2].trim();
+      continue;
+    }
+
+    if (currentRole && line.trim().startsWith('- ')) {
+      currentRole.bullets.push(line.trim().slice(2).trim());
+      continue;
+    }
+  }
+
+  flushCurrentRole();
+
+  return rows;
 }
 
 function validateHybridBrief(brief) {
@@ -777,6 +894,206 @@ function buildQuickApplySummary() {
   };
 }
 
+function buildCvChronologySummary() {
+  const items = parseBaseCvChronology();
+  return {
+    action: 'cv-chronology',
+    total_roles: items.length,
+    items,
+  };
+}
+
+function buildBaseCvSummary() {
+  const path = resolveReadableRepoPath('cv.md');
+  const content = readFileSync(path, 'utf-8');
+  return {
+    action: 'base-cv',
+    path: 'cv.md',
+    content,
+    chronology: parseBaseCvChronology(),
+  };
+}
+
+function buildProfileContextSummary() {
+  const files = [
+    ['config/profile.yml', PATHS.profile],
+    ['modes/_profile.md', PATHS.userProfile],
+    ['article-digest.md', PATHS.articleDigest],
+  ];
+
+  return {
+    action: 'profile-context',
+    files: files
+      .filter(([, abs]) => existsSync(abs))
+      .map(([rel, abs]) => ({
+        path: rel,
+        content: readFileSync(abs, 'utf-8'),
+      })),
+  };
+}
+
+function buildTrackerRowSummary(flags = {}) {
+  const num = parseInt(flags.num || '', 10);
+  if (Number.isNaN(num)) {
+    throw new Error('tracker-row requires a numeric num.');
+  }
+  const row = parseApplications().find((item) => item.num === num);
+  if (!row) {
+    throw new Error(`Tracker row ${num} not found.`);
+  }
+  return {
+    action: 'tracker-row',
+    row: {
+      ...row,
+      report_path: absoluteReportPath(row.report),
+    },
+  };
+}
+
+function buildReportSummary(flags = {}) {
+  const inputPath = flags.path || flags.report;
+  if (!inputPath) {
+    throw new Error('report requires a path.');
+  }
+  const path = resolveReadableRepoPath(inputPath);
+  if (!existsSync(path) || !statSync(path).isFile()) {
+    throw new Error(`Report "${inputPath}" does not exist.`);
+  }
+  ensureReadableTextFile(path);
+  return {
+    action: 'report',
+    path: path.slice(ROOT.length).replace(/^[\\/]+/, '').replace(/\\/g, '/'),
+    content: readFileSync(path, 'utf-8'),
+  };
+}
+
+function buildPipelineItemSummary(flags = {}) {
+  const url = String(flags.url || '').trim();
+  if (!url) {
+    throw new Error('pipeline-item requires a url.');
+  }
+  const item = parsePipeline().find((entry) => entry.url === url);
+  if (!item) {
+    throw new Error(`Pipeline item not found for URL: ${url}`);
+  }
+  return {
+    action: 'pipeline-item',
+    item,
+  };
+}
+
+function listRepoDir(flags = {}) {
+  const dirPath = resolveReadableRepoPath(flags.path || '.');
+  const depth = Math.max(0, Math.min(4, parseInt(flags.depth || '1', 10) || 1));
+
+  function visit(currentPath, currentDepth) {
+    return readdirSync(currentPath)
+      .map((name) => join(currentPath, name))
+      .filter((entryPath) => !isBlockedReadPath(entryPath))
+      .map((entryPath) => {
+        const stats = statSync(entryPath);
+        const rel = entryPath.slice(ROOT.length).replace(/^[\\/]+/, '').replace(/\\/g, '/');
+        const item = {
+          path: rel || '.',
+          name: basename(entryPath),
+          type: stats.isDirectory() ? 'directory' : 'file',
+        };
+        if (stats.isDirectory() && currentDepth < depth) {
+          item.children = visit(entryPath, currentDepth + 1);
+        } else if (!stats.isDirectory()) {
+          item.size = stats.size;
+          item.ext = extnameSafe(entryPath);
+        }
+        return item;
+      })
+      .sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+  }
+
+  return {
+    action: 'list-repo-dir',
+    root: ROOT,
+    path: dirPath.slice(ROOT.length).replace(/^[\\/]+/, '').replace(/\\/g, '/') || '.',
+    depth,
+    items: visit(dirPath, 1),
+  };
+}
+
+function readRepoFile(flags = {}) {
+  if (!flags.path) {
+    throw new Error('read-file requires a path.');
+  }
+  const filePath = resolveReadableRepoPath(flags.path);
+  if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+    throw new Error(`File "${flags.path}" does not exist or is not a file.`);
+  }
+  ensureReadableTextFile(filePath);
+
+  const startLine = Math.max(1, parseInt(flags['start-line'] || flags.start_line || '1', 10) || 1);
+  const maxLines = Math.max(1, Math.min(400, parseInt(flags['max-lines'] || flags.max_lines || '200', 10) || 200));
+  const lines = readFileSync(filePath, 'utf-8').split(/\r?\n/);
+  const slice = lines.slice(startLine - 1, startLine - 1 + maxLines);
+
+  return {
+    action: 'read-repo-file',
+    path: filePath.slice(ROOT.length).replace(/^[\\/]+/, '').replace(/\\/g, '/'),
+    start_line: startLine,
+    end_line: startLine + slice.length - 1,
+    total_lines: lines.length,
+    content: slice.join('\n'),
+  };
+}
+
+function searchRepoText(flags = {}) {
+  const query = String(flags.query || '').trim();
+  if (!query) {
+    throw new Error('search-repo requires a non-empty query.');
+  }
+
+  const basePath = resolveReadableRepoPath(flags.path || '.');
+  const limit = Math.max(1, Math.min(100, parseInt(flags.limit || '30', 10) || 30));
+  const result = spawnSync('rg', [
+    '--line-number',
+    '--with-filename',
+    '--color', 'never',
+    '--max-count', String(limit),
+    query,
+    basePath,
+  ], {
+    cwd: ROOT,
+    encoding: 'utf-8',
+    timeout: 300000,
+  });
+
+  const matches = (result.stdout || '')
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .slice(0, limit)
+    .map((line) => {
+      const match = line.match(/^(.*?):(\d+):(.*)$/);
+      if (!match) return null;
+      const [, absPath, lineNumber, text] = match;
+      if (isBlockedReadPath(absPath)) return null;
+      return {
+        path: absPath.slice(ROOT.length).replace(/^[\\/]+/, '').replace(/\\/g, '/'),
+        line: parseInt(lineNumber, 10),
+        text,
+      };
+    })
+    .filter(Boolean);
+
+  return {
+    action: 'search-repo',
+    query,
+    path: basePath.slice(ROOT.length).replace(/^[\\/]+/, '').replace(/\\/g, '/') || '.',
+    total_matches: matches.length,
+    matches,
+    stderr: (result.stderr || '').trim(),
+  };
+}
+
 function buildProjectProfileSummary() {
   const run = runNodeScript('generate-project-profile.mjs');
   if (!run.ok) {
@@ -1078,6 +1395,15 @@ function buildHelp() {
       { action: 'project-profile', description: 'Generate and return the ChatGPT-friendly markdown profile mirror.' },
       { action: 'repo-summary', description: 'Bundle profile lanes, tracker counts, attention-needed applications, evaluated roles, inbox state, and inconsistencies.' },
       { action: 'attention-report', description: 'Return read-only attention buckets for applied and evaluated roles, plus package gaps.' },
+      { action: 'base-cv', description: 'Return the full base CV content and parsed chronology.' },
+      { action: 'cv-chronology', description: 'Return parsed company/role chronology and bullets from cv.md.' },
+      { action: 'profile-context', description: 'Return raw profile context files (profile.yml, _profile.md, article-digest.md).' },
+      { action: 'tracker-row', description: 'Return a single tracker row by number.' },
+      { action: 'report', description: 'Return raw content of a report markdown file.' },
+      { action: 'pipeline-item', description: 'Return a single pipeline item by URL.' },
+      { action: 'list-repo-dir', description: 'List repo directories/files through a controlled read surface. Supports --path and --depth.' },
+      { action: 'read-file', description: 'Read a repo text file with line offsets. Supports --path, --start-line, and --max-lines.' },
+      { action: 'search-repo', description: 'Search repo text with ripgrep. Supports --query, optional --path and --limit.' },
       { action: 'patterns', description: 'Return structured pattern analysis from analyze-patterns.mjs.' },
       { action: 'quick-apply', description: 'Return the current general-use resume and cover-letter artifact paths from output/.' },
       { action: 'liveness', description: 'Run Playwright liveness on one or more URLs.' },
@@ -1598,6 +1924,24 @@ async function main() {
       action,
       ...buildQuickApplySummary(),
     };
+  } else if (action === 'base-cv') {
+    result = buildBaseCvSummary();
+  } else if (action === 'profile-context') {
+    result = buildProfileContextSummary();
+  } else if (action === 'tracker-row') {
+    result = buildTrackerRowSummary(parsed.flags);
+  } else if (action === 'report') {
+    result = buildReportSummary(parsed.flags);
+  } else if (action === 'pipeline-item') {
+    result = buildPipelineItemSummary(parsed.flags);
+  } else if (action === 'list-repo-dir') {
+    result = listRepoDir(parsed.flags);
+  } else if (action === 'read-file') {
+    result = readRepoFile(parsed.flags);
+  } else if (action === 'search-repo') {
+    result = searchRepoText(parsed.flags);
+  } else if (action === 'cv-chronology') {
+    result = buildCvChronologySummary();
   } else if (action === 'reports') {
     const limit = parsed.flags.limit ? parseInt(parsed.flags.limit, 10) : 10;
     const files = latestFilesInDir(REPORTS_DIR, (path) => path.toLowerCase().endsWith('.md'))

@@ -315,6 +315,122 @@ const TOOLS = [
     },
   },
   {
+    name: 'show_cv_chronology',
+    title: 'Show CV Chronology',
+    kind: 'read',
+    description: 'Return the real base-CV company/role chronology and bullets from cv.md for safe package tailoring and bullet overrides.',
+    inputSchema: objectSchema({}),
+    invoke() {
+      return { action: 'cv-chronology' };
+    },
+  },
+  {
+    name: 'show_base_cv',
+    title: 'Show Base CV',
+    kind: 'read',
+    description: 'Return the full base CV content plus parsed chronology for richer repo-aware reasoning.',
+    inputSchema: objectSchema({}),
+    invoke() {
+      return { action: 'base-cv' };
+    },
+  },
+  {
+    name: 'show_profile_context',
+    title: 'Show Profile Context',
+    kind: 'read',
+    description: 'Return raw profile context from config/profile.yml, modes/_profile.md, and article-digest.md.',
+    inputSchema: objectSchema({}),
+    invoke() {
+      return { action: 'profile-context' };
+    },
+  },
+  {
+    name: 'show_tracker_row',
+    title: 'Show Tracker Row',
+    kind: 'read',
+    description: 'Return a single tracker row by number with report path.',
+    inputSchema: objectSchema({
+      num: { type: 'number', minimum: 1, description: 'Tracker row number.' },
+    }, ['num']),
+    invoke(args = {}) {
+      return { action: 'tracker-row', flags: { num: args.num } };
+    },
+  },
+  {
+    name: 'show_report',
+    title: 'Show Report',
+    kind: 'read',
+    description: 'Return raw content of a saved report markdown file.',
+    inputSchema: objectSchema({
+      path: { type: 'string', description: 'Repo-relative or absolute path to a report markdown file.' },
+    }, ['path']),
+    invoke(args = {}) {
+      return { action: 'report', flags: { path: args.path } };
+    },
+  },
+  {
+    name: 'show_pipeline_item',
+    title: 'Show Pipeline Item',
+    kind: 'read',
+    description: 'Return a single pipeline inbox item by exact URL.',
+    inputSchema: objectSchema({
+      url: { type: 'string', description: 'Exact pipeline URL.' },
+    }, ['url']),
+    invoke(args = {}) {
+      return { action: 'pipeline-item', flags: { url: args.url } };
+    },
+  },
+  {
+    name: 'list_repo_dir',
+    title: 'List Repo Dir',
+    kind: 'read',
+    description: 'List directories and files in the repo through a controlled read surface.',
+    inputSchema: objectSchema({
+      path: { type: 'string', description: 'Repo-relative directory path. Defaults to repo root.' },
+      depth: { type: 'number', minimum: 0, maximum: 4, description: 'How many directory levels to include.' },
+    }),
+    invoke(args = {}) {
+      const flags = {};
+      if (args.path) flags.path = args.path;
+      if (args.depth !== undefined) flags.depth = args.depth;
+      return { action: 'list-repo-dir', flags };
+    },
+  },
+  {
+    name: 'read_repo_file',
+    title: 'Read Repo File',
+    kind: 'read',
+    description: 'Read a repo text file with optional line offsets. Blocks secrets and non-text file types.',
+    inputSchema: objectSchema({
+      path: { type: 'string', description: 'Repo-relative or absolute text file path.' },
+      start_line: { type: 'number', minimum: 1, description: '1-based starting line number.' },
+      max_lines: { type: 'number', minimum: 1, maximum: 400, description: 'Maximum number of lines to return.' },
+    }, ['path']),
+    invoke(args = {}) {
+      const flags = { path: args.path };
+      if (args.start_line !== undefined) flags['start-line'] = args.start_line;
+      if (args.max_lines !== undefined) flags['max-lines'] = args.max_lines;
+      return { action: 'read-file', flags };
+    },
+  },
+  {
+    name: 'search_repo_text',
+    title: 'Search Repo Text',
+    kind: 'read',
+    description: 'Search repo text with ripgrep and return structured matches.',
+    inputSchema: objectSchema({
+      query: { type: 'string', description: 'Search pattern or text.' },
+      path: { type: 'string', description: 'Optional repo-relative path to scope the search.' },
+      limit: { type: 'number', minimum: 1, maximum: 100, description: 'Maximum number of matches to return.' },
+    }, ['query']),
+    invoke(args = {}) {
+      const flags = { query: args.query };
+      if (args.path) flags.path = args.path;
+      if (args.limit !== undefined) flags.limit = args.limit;
+      return { action: 'search-repo', flags };
+    },
+  },
+  {
     name: 'verify_pipeline',
     title: 'Verify Pipeline',
     kind: 'read',
