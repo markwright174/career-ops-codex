@@ -117,15 +117,18 @@ server, not a local-only one. That means ChatGPT use still needs:
 2. an HTTPS tunnel
 3. ChatGPT developer mode with a custom MCP connector
 
-Important caveat: this server currently supports **optional bearer-token auth**
-for manual clients, but it does **not** yet implement OAuth. In practice, that
-means direct ChatGPT connector use will likely need one of these setups:
+The OAuth-capable path now exists in this repo, but it still requires:
 
-1. no auth at the MCP layer, with security handled by a trusted tunnel boundary
-2. a future OAuth upgrade
+1. a stable remote hostname
+2. an OAuth provider configured for ChatGPT
+3. the MCP server running with the OAuth environment variables above
 
-That is the main remaining gap between “works locally” and “clean ChatGPT
-connector setup.”
+In practice, ChatGPT connector use can now be done in either of these modes:
+
+1. no auth at the MCP layer for early read-only testing
+2. OAuth at the MCP layer for stable, secure app use
+
+The remaining work is app/provider wiring rather than missing server support.
 
 ## Protocol Notes
 

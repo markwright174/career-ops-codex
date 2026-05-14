@@ -62,8 +62,15 @@ export function buildOAuthConfig(env = process.env) {
   const audience = String(env.CAREER_OPS_MCP_OAUTH_AUDIENCE || '').trim();
   const publicBaseUrl = trimSlash(env.CAREER_OPS_MCP_PUBLIC_BASE_URL || '');
   const publicPath = env.CAREER_OPS_MCP_PUBLIC_PATH || '/mcp';
-  const readScope = String(env.CAREER_OPS_MCP_READ_SCOPE || 'career_ops:read').trim();
-  const writeScope = String(env.CAREER_OPS_MCP_WRITE_SCOPE || 'career_ops:write').trim();
+  const rawReadScope = Object.prototype.hasOwnProperty.call(env, 'CAREER_OPS_MCP_READ_SCOPE')
+    ? String(env.CAREER_OPS_MCP_READ_SCOPE || '').trim()
+    : null;
+  const readScope = rawReadScope === null
+    ? 'career_ops:read'
+    : (rawReadScope === '__none__' ? '' : rawReadScope);
+  const writeScope = Object.prototype.hasOwnProperty.call(env, 'CAREER_OPS_MCP_WRITE_SCOPE')
+    ? String(env.CAREER_OPS_MCP_WRITE_SCOPE || '').trim()
+    : 'career_ops:write';
 
   const enabled = Boolean(issuer && audience && publicBaseUrl);
   const metadataPath = buildProtectedResourceMetadataPath(publicPath);

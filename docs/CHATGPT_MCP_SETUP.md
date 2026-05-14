@@ -110,15 +110,15 @@ Based on OpenAI’s current setup flow:
 5. Save as a draft app
 6. Test in chat
 
-For this repo’s current implementation, the realistic short-term auth choices
-are:
+For this repo today, the practical auth choices are:
 
 1. **No auth at MCP layer for initial testing**
-2. **Future OAuth upgrade for production-like use**
+2. **OAuth for the stable production-like setup**
 
-Why: ChatGPT’s clean app flow expects remote MCP connectivity, and OAuth is the
-best long-term match. The current server supports optional bearer tokens for
-manual clients, but that is not yet the polished ChatGPT app path.
+ChatGPT developer mode supports OAuth, No Authentication, and Mixed
+Authentication for remote MCP apps. For Career-Ops, OAuth is the intended
+long-term setup because it gives you a stable app URL and a cleaner path to a
+safe write layer.
 
 ### Phase 4: Intentional write-enabled sessions
 
