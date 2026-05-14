@@ -176,8 +176,45 @@ function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function parseBaseCvExperienceKeys() {
+  const path = PATHS.cv;
+  if (!existsSync(path)) return new Set();
+
+  const lines = readFileSync(path, 'utf-8').split(/\r?\n/);
+  const keys = new Set();
+  let inExperience = false;
+  let currentRole = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.startsWith('## ')) {
+      inExperience = /^##\s+Professional Experience\s*$/i.test(line.trim());
+      currentRole = '';
+      continue;
+    }
+    if (!inExperience) continue;
+
+    const roleMatch = line.match(/^###\s+(.+?)\s*$/);
+    if (roleMatch) {
+      currentRole = roleMatch[1].trim();
+      continue;
+    }
+
+    const companyMatch = line.match(/^\*\*(.+?)\*\*\s*\|/);
+    if (companyMatch && currentRole) {
+      const company = companyMatch[1].trim();
+      keys.add(`${normalizeCompany(company)}::${normalizeText(currentRole)}`);
+      currentRole = '';
+    }
+  }
+
+  return keys;
+}
+
 function validateHybridBrief(brief) {
   const errors = [];
+  const baseExperienceKeys = parseBaseCvExperienceKeys();
 
   if (!isNonEmptyString(brief.summary_text)) {
     errors.push('brief.summary_text is required and must be a non-empty string.');
@@ -199,6 +236,15 @@ function validateHybridBrief(brief) {
       }
       if (!Array.isArray(entry.bullets) || entry.bullets.length === 0) {
         errors.push(`brief.experience[${index}].bullets must be a non-empty array of strings.`);
+      }
+      if (isNonEmptyString(entry.company) && isNonEmptyString(entry.role)) {
+        const key = `${normalizeCompany(entry.company)}::${normalizeText(entry.role)}`;
+        if (!baseExperienceKeys.has(key)) {
+          errors.push(
+            `brief.experience[${index}] must reference a real CV role/company pair. ` +
+            `Use bullet overrides for existing roles instead of synthetic umbrella entries like "${entry.company}" / "${entry.role}".`
+          );
+        }
       }
     });
   }
@@ -230,6 +276,10 @@ function validateHybridBrief(brief) {
 function validateHybridLetter(letter) {
   const errors = [];
 
+  if (!isNonEmptyString(letter.date)) {
+    errors.push('letter.date is required and must be a non-empty string.');
+  }
+
   if (!Array.isArray(letter.recipient_lines) || letter.recipient_lines.length === 0) {
     errors.push('letter.recipient_lines must be a non-empty array of strings.');
   }
@@ -244,6 +294,8 @@ function validateHybridLetter(letter) {
 
   if (!isNonEmptyString(letter.closing)) {
     errors.push('letter.closing is required and must be a non-empty string.');
+  } else if (String(letter.closing).includes('\n')) {
+    errors.push('letter.closing must be a single-line closing such as "Sincerely,". Do not include the candidate name in closing.');
   }
 
   return errors;
