@@ -465,6 +465,41 @@ const TOOLS = [
     },
   },
   {
+    name: 'build_package_from_json',
+    title: 'Build Package From JSON',
+    kind: 'write',
+    description: 'Hybrid package flow: accept builder-ready CV brief JSON and cover-letter JSON, then build HTML/PDF artifacts without using Gemini. Do not send planning notes or strategy metadata in place of the required render fields.',
+    inputSchema: objectSchema({
+      brief: {
+        type: 'object',
+        description: 'Builder-ready CV brief JSON. Must include summary_text, competencies, experience, and skills. Optional projects array is allowed.',
+      },
+      letter: {
+        type: 'object',
+        description: 'Builder-ready cover-letter JSON. Must include recipient_lines, greeting, paragraphs, and closing.',
+      },
+      company: { type: 'string', description: 'Company name.' },
+      role: { type: 'string', description: 'Role title.' },
+      report: { type: 'string', description: 'Optional path to a saved report markdown file.' },
+      url: { type: 'string', description: 'Original job URL for context and logging.' },
+      date: { type: 'string', description: 'ISO date override (YYYY-MM-DD).' },
+      format: { type: 'string', enum: ['letter', 'a4'], description: 'Optional paper format override.' },
+      dry_run: { type: 'boolean', description: 'Preview paths and validate payloads without writing files.' },
+    }, ['brief', 'letter', 'company', 'role']),
+    invoke(args = {}) {
+      const flags = {};
+      for (const [key, value] of Object.entries(args)) {
+        if (value === undefined) continue;
+        if (key === 'brief' || key === 'letter') {
+          flags[`${normalizeToolArgName(key)}-json`] = JSON.stringify(value);
+        } else {
+          flags[normalizeToolArgName(key)] = value;
+        }
+      }
+      return { action: 'package', flags };
+    },
+  },
+  {
     name: 'prepare_application',
     title: 'Prepare Application',
     kind: 'write',

@@ -172,6 +172,83 @@ function safeJsonParse(text, label) {
   }
 }
 
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function validateHybridBrief(brief) {
+  const errors = [];
+
+  if (!isNonEmptyString(brief.summary_text)) {
+    errors.push('brief.summary_text is required and must be a non-empty string.');
+  }
+
+  if (!Array.isArray(brief.competencies) || brief.competencies.length === 0) {
+    errors.push('brief.competencies must be a non-empty array of strings.');
+  }
+
+  if (!Array.isArray(brief.experience) || brief.experience.length === 0) {
+    errors.push('brief.experience must be a non-empty array.');
+  } else {
+    brief.experience.forEach((entry, index) => {
+      if (!isNonEmptyString(entry.company)) {
+        errors.push(`brief.experience[${index}].company is required.`);
+      }
+      if (!isNonEmptyString(entry.role)) {
+        errors.push(`brief.experience[${index}].role is required.`);
+      }
+      if (!Array.isArray(entry.bullets) || entry.bullets.length === 0) {
+        errors.push(`brief.experience[${index}].bullets must be a non-empty array of strings.`);
+      }
+    });
+  }
+
+  if (!Array.isArray(brief.skills) || brief.skills.length === 0) {
+    errors.push('brief.skills must be a non-empty array.');
+  } else {
+    brief.skills.forEach((entry, index) => {
+      if (!isNonEmptyString(entry.category)) {
+        errors.push(`brief.skills[${index}].category is required.`);
+      }
+      if (
+        !Array.isArray(entry.items)
+        || entry.items.length === 0
+        || !entry.items.every((item) => isNonEmptyString(item))
+      ) {
+        errors.push(`brief.skills[${index}].items must be a non-empty array of strings.`);
+      }
+    });
+  }
+
+  if (brief.projects !== undefined && !Array.isArray(brief.projects)) {
+    errors.push('brief.projects must be an array when provided.');
+  }
+
+  return errors;
+}
+
+function validateHybridLetter(letter) {
+  const errors = [];
+
+  if (!Array.isArray(letter.recipient_lines) || letter.recipient_lines.length === 0) {
+    errors.push('letter.recipient_lines must be a non-empty array of strings.');
+  }
+
+  if (!isNonEmptyString(letter.greeting)) {
+    errors.push('letter.greeting is required and must be a non-empty string.');
+  }
+
+  if (!Array.isArray(letter.paragraphs) || letter.paragraphs.length < 2) {
+    errors.push('letter.paragraphs must be an array with at least 2 paragraphs.');
+  }
+
+  if (!isNonEmptyString(letter.closing)) {
+    errors.push('letter.closing is required and must be a non-empty string.');
+  }
+
+  return errors;
+}
+
 function slugify(text) {
   return String(text || '')
     .toLowerCase()
@@ -283,6 +360,10 @@ function buildPackageFromStructuredInput(flags = {}) {
 
   const brief = safeJsonParse(briefJson, 'brief');
   const letter = safeJsonParse(letterJson, 'letter');
+  const validationErrors = [
+    ...validateHybridBrief(brief),
+    ...validateHybridLetter(letter),
+  ];
   const profile = readYaml(PATHS.profile, {});
   const candidateSlug = slugify(profile?.candidate?.full_name || 'candidate');
   const company = String(flags.company || 'unknown-company').trim();
@@ -334,6 +415,31 @@ function buildPackageFromStructuredInput(flags = {}) {
       cover_letter_pdf: coverPdfPath,
     },
   };
+
+  if (validationErrors.length > 0) {
+    return {
+      action: 'package',
+      ok: false,
+      mode: 'hybrid',
+      error: 'Hybrid package payload failed validation.',
+      validation_errors: validationErrors,
+      expected_shapes: {
+        brief: {
+          summary_text: 'string',
+          competencies: ['string'],
+          experience: [{ company: 'string', role: 'string', bullets: ['string'] }],
+          projects: [{ title: 'string', badge: 'string?', description: 'string', tech: 'string?' }],
+          skills: [{ category: 'string', items: ['string'] }],
+        },
+        letter: {
+          recipient_lines: ['string'],
+          greeting: 'string',
+          paragraphs: ['string', 'string'],
+          closing: 'string',
+        },
+      },
+    };
+  }
 
   if (dryRun) {
     return {
