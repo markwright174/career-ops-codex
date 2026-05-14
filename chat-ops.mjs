@@ -761,6 +761,8 @@ function buildHelp() {
       { action: 'apply-prep', description: 'Evaluate a role and generate the tailored package in one step.' },
       { action: 'update-application', description: 'Update an existing tracker row by number. Supports --num N, optional --status STATE, --pdf ✅|❌, --notes TEXT, and --replace-notes.' },
       { action: 'update-inbox', description: 'Update a pipeline inbox item by URL. Supports --url URL, --state pending|processed|issue, optional --note TEXT, and --replace-note.' },
+      { action: 'mark-applied', description: 'Convenience helper: set an existing tracker row to Applied and optionally append a note or PDF status.' },
+      { action: 'mark-inbox-stale', description: 'Convenience helper: mark a pipeline URL as an issue/stale item with a note.' },
       { action: 'verify', description: 'Run verify-pipeline.mjs and return pass/fail with captured output.' },
       { action: 'sync-check', description: 'Run cv-sync-check.mjs and return pass/fail with captured output.' },
       { action: 'project-profile', description: 'Generate and return the ChatGPT-friendly markdown profile mirror.' },
@@ -777,6 +779,7 @@ function buildHelp() {
       'node chat-ops.mjs quick-apply',
       'node chat-ops.mjs liveness https://example.com/job/123',
       'node chat-ops.mjs update-application --num 73 --status Applied --notes "Applied via company site"',
+      'node chat-ops.mjs mark-inbox-stale --url https://example.com/job --note "Expired shell"',
     ],
   };
 }
@@ -956,6 +959,23 @@ function updateInboxItem(flags = {}) {
   };
 }
 
+function markApplied(flags = {}) {
+  return updateApplicationRow({
+    ...flags,
+    status: 'Applied',
+  });
+}
+
+function markInboxStale(flags = {}) {
+  const incomingNote = String(flags.note || '').trim();
+  const note = incomingNote || 'Marked stale via MCP helper.';
+  return updateInboxItem({
+    ...flags,
+    state: 'issue',
+    note,
+  });
+}
+
 async function main() {
   const parsed = parseArgs(process.argv);
   const action = parsed.action;
@@ -1029,6 +1049,10 @@ async function main() {
     result = updateApplicationRow(parsed.flags);
   } else if (action === 'update-inbox') {
     result = updateInboxItem(parsed.flags);
+  } else if (action === 'mark-applied') {
+    result = markApplied(parsed.flags);
+  } else if (action === 'mark-inbox-stale') {
+    result = markInboxStale(parsed.flags);
   } else if (action === 'verify') {
     const run = runNodeScript('verify-pipeline.mjs');
     result = {

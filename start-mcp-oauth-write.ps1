@@ -16,6 +16,21 @@ function Test-CareerOpsHealth {
     }
 }
 
+function Test-CareerOpsWriteHealth {
+    param([string]$Url)
+
+    try {
+        $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 $Url
+        return (
+            $response.StatusCode -eq 200 -and
+            $response.Content -match '"service"\s*:\s*"career-ops-mcp"' -and
+            $response.Content -match '"write_tools_enabled"\s*:\s*true'
+        )
+    } catch {
+        return $false
+    }
+}
+
 function Test-CareerOpsOAuthMetadata {
     param([string]$Url)
 
@@ -50,8 +65,8 @@ function Get-PortOwnerPid {
     return $null
 }
 
-if ((Test-CareerOpsHealth -Url $healthUrl) -and (Test-CareerOpsOAuthMetadata -Url $metadataUrl)) {
-    Write-Output "career-ops OAuth MCP is already healthy at $healthUrl"
+if ((Test-CareerOpsWriteHealth -Url $healthUrl) -and (Test-CareerOpsOAuthMetadata -Url $metadataUrl)) {
+    Write-Output "career-ops OAuth write MCP is already healthy at $healthUrl"
     exit 0
 }
 
@@ -84,7 +99,7 @@ $nodeProc = Start-Process powershell `
 
 for ($i = 0; $i -lt 8; $i++) {
     Start-Sleep -Seconds 1
-    if ((Test-CareerOpsHealth -Url $healthUrl) -and (Test-CareerOpsOAuthMetadata -Url $metadataUrl)) {
+    if ((Test-CareerOpsWriteHealth -Url $healthUrl) -and (Test-CareerOpsOAuthMetadata -Url $metadataUrl)) {
         Write-Output "career-ops OAuth write MCP started on https://mcp.marklwright.com/career-ops-mcp (local PID $($nodeProc.Id))"
         exit 0
     }

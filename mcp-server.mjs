@@ -482,6 +482,43 @@ const TOOLS = [
       return { action: 'update-inbox', flags };
     },
   },
+  {
+    name: 'mark_application_applied',
+    title: 'Mark Application Applied',
+    kind: 'write',
+    description: 'Convenience helper to set an existing tracker row to Applied and optionally append a note or PDF status.',
+    inputSchema: objectSchema({
+      num: { type: 'number', minimum: 1, description: 'Tracker row number to update.' },
+      pdf: { type: 'string', enum: ['✅', '❌'], description: 'Optional PDF status override.' },
+      notes: { type: 'string', description: 'Optional note text to append or replace.' },
+      replace_notes: { type: 'boolean', description: 'Replace existing notes instead of appending.' },
+    }, ['num']),
+    invoke(args = {}) {
+      const flags = {};
+      for (const [key, value] of Object.entries(args)) {
+        if (value !== undefined) flags[normalizeToolArgName(key)] = value;
+      }
+      return { action: 'mark-applied', flags };
+    },
+  },
+  {
+    name: 'mark_inbox_stale',
+    title: 'Mark Inbox Stale',
+    kind: 'write',
+    description: 'Convenience helper to mark a pipeline URL as an issue/stale item with a note.',
+    inputSchema: objectSchema({
+      url: { type: 'string', description: 'Exact pipeline URL to update.' },
+      note: { type: 'string', description: 'Optional note text to append or replace.' },
+      replace_note: { type: 'boolean', description: 'Replace the existing note instead of appending.' },
+    }, ['url']),
+    invoke(args = {}) {
+      const flags = {};
+      for (const [key, value] of Object.entries(args)) {
+        if (value !== undefined) flags[normalizeToolArgName(key)] = value;
+      }
+      return { action: 'mark-inbox-stale', flags };
+    },
+  },
 ];
 
 const TOOL_MAP = new Map(TOOLS.map((tool) => [tool.name, tool]));
