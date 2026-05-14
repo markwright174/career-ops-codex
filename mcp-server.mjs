@@ -616,6 +616,38 @@ const TOOLS = [
     },
   },
   {
+    name: 'build_quality_package_for_row',
+    title: 'Build Quality Package For Row',
+    kind: 'write',
+    description: 'Row-aware package workflow. First call with num only to get tracker/report/CV/profile context plus built-in quality rules. Then call again with builder-ready brief and letter JSON to run quality checks and build the package.',
+    inputSchema: objectSchema({
+      num: { type: 'number', minimum: 1, description: 'Existing tracker row number.' },
+      brief: {
+        type: 'object',
+        description: 'Builder-ready CV brief JSON. Optional on the first context call; required on the build call.',
+      },
+      letter: {
+        type: 'object',
+        description: 'Builder-ready cover-letter JSON. Optional on the first context call; required on the build call.',
+      },
+      date: { type: 'string', description: 'ISO date override (YYYY-MM-DD).' },
+      format: { type: 'string', enum: ['letter', 'a4'], description: 'Optional paper format override.' },
+      dry_run: { type: 'boolean', description: 'Preview output paths and validate payloads without writing files.' },
+    }, ['num']),
+    invoke(args = {}) {
+      const flags = {};
+      for (const [key, value] of Object.entries(args)) {
+        if (value === undefined) continue;
+        if (key === 'brief' || key === 'letter') {
+          flags[`${normalizeToolArgName(key)}-json`] = JSON.stringify(value);
+        } else {
+          flags[normalizeToolArgName(key)] = value;
+        }
+      }
+      return { action: 'quality-package-row', flags };
+    },
+  },
+  {
     name: 'prepare_application',
     title: 'Prepare Application',
     kind: 'write',

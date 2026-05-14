@@ -22,6 +22,7 @@ With MCP, ChatGPT can call named repo tools such as:
 - `verify_pipeline`
 - `evaluate_role`
 - `prepare_package`
+- `build_quality_package_for_row`
 - `prepare_application`
 
 ## Current Reality
@@ -166,6 +167,13 @@ tailoring itself, use this pattern:
 2. ChatGPT writes the tailored CV brief JSON and cover-letter JSON in chat
 3. ChatGPT calls `prepare_package` with `brief` and `letter`
 4. Career-Ops builds the HTML/PDF artifacts and updates tracker PDF status
+
+For an already-evaluated tracker row, prefer `build_quality_package_for_row`.
+It lets ChatGPT fetch row/report/CV/profile context and then run the package
+through built-in quality checks without repeating a long package prompt.
+Those checks now cover both the CV and the cover letter, including role-aware
+letter requirements such as clear role mention, direct company reference, and
+report-derived theme coverage.
 
 ## Suggested First ChatGPT Tests
 

@@ -28,6 +28,7 @@ The MCP layer exposes named tools such as:
 - `evaluate_role`
 - `record_evaluation`
 - `prepare_package`
+- `build_quality_package_for_row`
 - `prepare_application`
 - `update_application_status`
 - `update_inbox_item`
@@ -212,6 +213,29 @@ This keeps the repo canonical without forcing every evaluation through Gemini.
 
 This lets ChatGPT do the tailoring while the repo still owns artifact creation
 and tracker updates, without depending on Gemini for package generation.
+
+For an existing tracker row, prefer `build_quality_package_for_row`:
+
+1. call it with `num` only
+2. it returns:
+   - tracker row context
+   - report content
+   - CV chronology
+   - profile context
+   - built-in quality rules
+3. ChatGPT drafts builder-ready `brief` and `letter` JSON
+4. call `build_quality_package_for_row` again with the same `num` plus the JSON
+5. Career-Ops runs:
+   - structure validation
+   - row-aware quality checks
+   - cover-letter quality checks for role mention, company mention, role-specific themes, and generic-opening warnings
+   - package build
+   - tracker PDF update
+   - `verify-pipeline.mjs`
+
+This is the preferred path when the user says things like "let's apply" for a
+known tracker row and you want the repo to carry the package rubric instead of
+repeating a long prompt every time.
 
 ## Recommended Use
 

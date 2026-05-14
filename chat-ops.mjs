@@ -418,6 +418,236 @@ function validateHybridLetter(letter) {
   return errors;
 }
 
+function buildBaseCvExperienceMap() {
+  const map = new Map();
+  for (const entry of parseBaseCvChronology()) {
+    const key = `${normalizeCompany(entry.company)}::${normalizeText(entry.role)}`;
+    map.set(key, entry);
+  }
+  return map;
+}
+
+function normalizedBulletList(bullets = []) {
+  return bullets
+    .map((bullet) => normalizeText(bullet))
+    .filter(Boolean);
+}
+
+function bulletsChangedFromBase(candidateBullets = [], baseBullets = []) {
+  const left = normalizedBulletList(candidateBullets);
+  const right = normalizedBulletList(baseBullets);
+  return JSON.stringify(left) !== JSON.stringify(right);
+}
+
+function companyReferenceTokens(company) {
+  return normalizeText(company)
+    .split(' ')
+    .filter((token) => token.length > 3 && !['university', 'college', 'group', 'company'].includes(token));
+}
+
+function hasCompanyReference(text, company) {
+  const normalized = normalizeText(text);
+  if (!normalized) return false;
+  const full = normalizeText(company);
+  if (full && normalized.includes(full)) return true;
+  return companyReferenceTokens(company).some((token) => normalized.includes(token));
+}
+
+function roleReferenceTokens(role) {
+  const stopwords = new Set([
+    'and', 'the', 'for', 'with', 'role', 'position', 'of', 'to', 'in',
+    'senior', 'jr', 'sr', 'principal', 'director', 'manager', 'lead',
+    'head', 'associate', 'ii', 'iii', 'iv',
+  ]);
+  return [...new Set(
+    normalizeText(role)
+      .split(' ')
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 4 && !stopwords.has(token))
+  )];
+}
+
+function hasRoleReference(text, role) {
+  const normalized = normalizeText(text);
+  if (!normalized) return false;
+  const full = normalizeText(role);
+  if (full && normalized.includes(full)) return true;
+  const tokens = roleReferenceTokens(role);
+  let matches = 0;
+  for (const token of tokens) {
+    if (normalized.includes(token)) matches += 1;
+  }
+  return matches >= Math.min(2, tokens.length);
+}
+
+function inferCoverLetterThemes(reportContent = '', row = {}) {
+  const source = normalizeText(`${reportContent || ''}\n${row.role || ''}\n${row.notes || ''}`);
+  const themeCatalog = [
+    {
+      key: 'operations',
+      label: 'operations and process discipline',
+      tokens: ['operations', 'operational', 'workflow', 'workflows', 'process', 'processes', 'documentation'],
+    },
+    {
+      key: 'prioritization',
+      label: 'prioritization, intake, and timelines',
+      tokens: ['prioritization', 'priorities', 'intake', 'timeline', 'timelines', 'milestones', 'risk'],
+    },
+    {
+      key: 'curriculum',
+      label: 'curriculum and course-development maintenance',
+      tokens: ['curriculum', 'course development', 'course-development', 'course maintenance', 'maintenance', 'courses'],
+    },
+    {
+      key: 'stakeholders',
+      label: 'academic and stakeholder coordination',
+      tokens: ['stakeholder', 'stakeholders', 'faculty', 'academic', 'academic affairs', 'cross functional', 'cross-functional', 'sme'],
+    },
+    {
+      key: 'delivery_quality',
+      label: 'delivery quality, assessment, and accessibility',
+      tokens: ['quality', 'assessment', 'accessibility', 'learner', 'delivery', 'lms'],
+    },
+  ];
+
+  const inferred = themeCatalog.filter((theme) =>
+    theme.tokens.some((token) => source.includes(normalizeText(token)))
+  );
+
+  return inferred.length > 0 ? inferred : themeCatalog.slice(0, 3);
+}
+
+function buildQualityPackageRules(row, chronology, reportContent = '') {
+  const focusRoles = chronology.slice(0, 4).map((entry) => ({
+    company: entry.company,
+    role: entry.role,
+  }));
+  const coverLetterThemes = inferCoverLetterThemes(reportContent, row);
+
+  return {
+    summary: 'Prefer strong bullet-level tailoring on real CV roles before adding project filler.',
+    required_steps: [
+      'Use real CV chronology only.',
+      'Read the saved tracker row, report, CV chronology, and profile context first.',
+      'Tailor primarily by refining bullets on real roles, especially the recent core roles.',
+      'Build builder-ready JSON only.',
+      'Run the quality build/write path through this tool.',
+    ],
+    cv_requirements: [
+      'Use only real company/role pairs from CV chronology.',
+      'At least two roles should show meaningful bullet overrides beyond the base CV.',
+      'At least two focus roles should show tailored bullets when possible.',
+      'Avoid synthetic umbrella employers, synthetic contexts, or fake roles.',
+      'Keep projects additive; do not make projects carry most of the tailoring.',
+      'Prefer restrained workflow/outcome framing over named-product AI/tool emphasis.',
+    ],
+    cover_letter_requirements: [
+      'Use 3-4 body paragraphs.',
+      'Include a real date.',
+      'Keep closing as exactly "Sincerely," and let the renderer add the candidate name.',
+      'Mention the target role clearly in the opening paragraph.',
+      'Mention the company directly in the body.',
+      'Reflect at least 2 role-specific themes from the saved evaluation context.',
+      'Do not mention compensation.',
+    ],
+    cover_letter_focus_themes: coverLetterThemes.map((theme) => theme.label),
+    focus_roles: focusRoles,
+  };
+}
+
+function validateQualityPackageForRow(brief, letter, context) {
+  const errors = [];
+  const warnings = [];
+  const baseMap = buildBaseCvExperienceMap();
+  const focusKeys = new Set(
+    context.focus_roles.map((entry) => `${normalizeCompany(entry.company)}::${normalizeText(entry.role)}`)
+  );
+  let changedRoles = 0;
+  let changedFocusRoles = 0;
+
+  for (const entry of brief.experience || []) {
+    const key = `${normalizeCompany(entry.company)}::${normalizeText(entry.role)}`;
+    const base = baseMap.get(key);
+    if (!base) continue;
+    if (bulletsChangedFromBase(entry.bullets, base.bullets)) {
+      changedRoles += 1;
+      if (focusKeys.has(key)) changedFocusRoles += 1;
+    }
+  }
+
+  if (changedRoles < 2) {
+    errors.push('Quality package requires meaningful bullet overrides on at least 2 real CV roles.');
+  }
+
+  if (changedFocusRoles < 2 && context.focus_roles.length >= 2) {
+    errors.push('Quality package requires bullet-level tailoring on at least 2 focus roles from CV chronology.');
+  }
+
+  if (Array.isArray(brief.projects) && brief.projects.length > 3) {
+    warnings.push('More than 3 projects were provided. Quality packages usually work better with fewer, stronger projects.');
+  }
+
+  if (Array.isArray(brief.projects) && brief.projects.length > 0 && changedRoles <= brief.projects.length) {
+    warnings.push('Projects appear to be carrying as much or more tailoring weight than work-history bullets.');
+  }
+
+  const knownCompanies = new Set(
+    parseBaseCvChronology().map((entry) => normalizeCompany(entry.company))
+  );
+  for (const project of brief.projects || []) {
+    if (project.badge && !knownCompanies.has(normalizeCompany(project.badge))) {
+      warnings.push(`Project badge "${project.badge}" does not map to a base CV company. Make sure it adds credible evidence.`);
+    }
+    const projectText = [project.title, project.description, project.tech].filter(Boolean).join(' ');
+    if (/\b(chatgpt|gemini|copilot|claude|openai)\b/i.test(projectText)) {
+      warnings.push(`Project "${project.title || 'untitled project'}" uses named-product AI/tool language. Prefer workflow and outcomes unless brand names are clearly useful.`);
+    }
+  }
+
+  if (!Array.isArray(letter.paragraphs) || letter.paragraphs.length < 3 || letter.paragraphs.length > 4) {
+    errors.push('Quality package cover letter must use 3-4 body paragraphs.');
+  }
+
+  const openingParagraph = Array.isArray(letter.paragraphs) ? String(letter.paragraphs[0] || '') : '';
+  const bodyText = Array.isArray(letter.paragraphs) ? letter.paragraphs.join('\n\n') : '';
+  const bodyTextNormalized = normalizeText(bodyText);
+
+  if (!hasRoleReference(openingParagraph, context.role)) {
+    errors.push(`Cover letter opening paragraph must reference the target role (${context.role}) clearly.`);
+  }
+
+  if (!hasCompanyReference(bodyText, context.company)) {
+    errors.push(`Cover letter body must mention the target company (${context.company}) directly.`);
+  }
+
+  if (/\b(compensation|salary|range|min(?:imum)?|target|pay)\b|\$\d/i.test(bodyText)) {
+    errors.push('Cover letter body must not mention compensation.');
+  }
+
+  const coverLetterThemes = Array.isArray(context.cover_letter_focus_themes)
+    ? context.cover_letter_focus_themes
+    : [];
+  const matchedThemeCount = coverLetterThemes.filter((theme) =>
+    Array.isArray(theme.tokens) && theme.tokens.some((token) => bodyTextNormalized.includes(normalizeText(token)))
+  ).length;
+  if (coverLetterThemes.length > 0 && matchedThemeCount < Math.min(2, coverLetterThemes.length)) {
+    errors.push('Cover letter body must reflect at least 2 role-specific themes from the saved evaluation context.');
+  }
+
+  if (/^i am writing to express my interest\b/i.test(openingParagraph.trim())) {
+    warnings.push('Cover letter opening is generic. Prefer a sharper, role-specific opening sentence.');
+  }
+
+  const finalParagraph = Array.isArray(letter.paragraphs)
+    ? String(letter.paragraphs[letter.paragraphs.length - 1] || '')
+    : '';
+  if (!/(operations?|priorit|curriculum|stakeholder|course|academic|delivery)/i.test(finalParagraph)) {
+    warnings.push('Cover letter closing paragraph may be too generic. Reinforce the operational fit before the signoff.');
+  }
+
+  return { errors, warnings, changed_roles: changedRoles, changed_focus_roles: changedFocusRoles };
+}
+
 function slugify(text) {
   return String(text || '')
     .toLowerCase()
@@ -967,6 +1197,122 @@ function buildReportSummary(flags = {}) {
   };
 }
 
+function extractReportUrl(reportContent) {
+  const match = String(reportContent || '').match(/^\*\*URL:\*\*\s+(.+)$/m);
+  return match ? match[1].trim() : null;
+}
+
+function buildQualityPackageForRow(flags = {}) {
+  const num = parseInt(flags.num || '', 10);
+  if (Number.isNaN(num)) {
+    return { ok: false, error: 'quality-package-row requires a numeric num.' };
+  }
+
+  const row = parseApplications().find((item) => item.num === num);
+  if (!row) {
+    return { ok: false, error: `Tracker row ${num} not found.` };
+  }
+
+  const chronology = parseBaseCvChronology();
+  const profileContext = buildProfileContextSummary();
+  const reportPath = absoluteReportPath(row.report);
+  const reportContent = reportPath && existsSync(reportPath) ? readFileSync(reportPath, 'utf-8') : null;
+  const reportRelPath = reportPath
+    ? reportPath.slice(ROOT.length).replace(/^[\\/]+/, '').replace(/\\/g, '/')
+    : null;
+  const reportUrl = reportContent ? extractReportUrl(reportContent) : null;
+  const rules = buildQualityPackageRules(row, chronology, reportContent || '');
+  const context = {
+    num,
+    company: row.company,
+    role: row.role,
+    score: row.score,
+    status: row.status,
+    pdf: row.pdf,
+    notes: row.notes,
+    report_path: reportRelPath,
+    report_url: reportUrl,
+    cover_letter_focus_themes: inferCoverLetterThemes(reportContent || '', row),
+    focus_roles: chronology.slice(0, 4).map((entry) => ({ company: entry.company, role: entry.role })),
+  };
+  const briefJson = flags['brief-json'] || flags.brief_json;
+  const letterJson = flags['letter-json'] || flags.letter_json;
+
+  if (!briefJson || !letterJson) {
+    return {
+      action: 'quality-package-row',
+      ok: true,
+      mode: 'context',
+      context: {
+        tracker_row: {
+          ...row,
+          report_path: reportRelPath,
+          url: reportUrl,
+        },
+        cv_chronology: chronology,
+        report: reportContent ? {
+          path: reportRelPath,
+          content: reportContent,
+        } : null,
+        profile_context: profileContext.files,
+      },
+      quality_rules: rules,
+      next_step: 'Draft builder-ready brief and letter JSON, then call quality-package-row again with brief_json and letter_json.',
+    };
+  }
+
+  let brief;
+  let letter;
+  try {
+    brief = safeJsonParse(briefJson, 'brief');
+    letter = safeJsonParse(letterJson, 'letter');
+  } catch (err) {
+    return {
+      action: 'quality-package-row',
+      ok: false,
+      mode: 'hybrid-quality',
+      error: err.message,
+    };
+  }
+
+  const quality = validateQualityPackageForRow(brief, letter, context);
+  if (quality.errors.length > 0) {
+    return {
+      action: 'quality-package-row',
+      ok: false,
+      mode: 'hybrid-quality',
+      error: 'Quality package payload failed package-quality checks.',
+      quality_errors: quality.errors,
+      quality_warnings: quality.warnings,
+      quality_rules: rules,
+      context,
+    };
+  }
+
+  const mergedFlags = {
+    ...flags,
+    company: row.company,
+    role: row.role,
+    report: reportRelPath || flags.report,
+    url: reportUrl || flags.url,
+    'brief-json': briefJson,
+    'letter-json': letterJson,
+  };
+  const packageResult = buildPackageFromStructuredInput(mergedFlags);
+  return {
+    ...packageResult,
+    action: 'quality-package-row',
+    mode: packageResult.mode === 'hybrid' ? 'hybrid-quality' : packageResult.mode,
+    quality_warnings: quality.warnings,
+    quality_stats: {
+      changed_roles: quality.changed_roles,
+      changed_focus_roles: quality.changed_focus_roles,
+    },
+    quality_rules: rules,
+    context,
+  };
+}
+
 function buildPipelineItemSummary(flags = {}) {
   const url = String(flags.url || '').trim();
   if (!url) {
@@ -1385,6 +1731,7 @@ function buildHelp() {
       { action: 'evaluate', description: 'Run the Gemini-backed evaluation pipeline for a JD URL or file. Supports --url, --jd-file, and optional --with-package.' },
       { action: 'record-evaluation', description: 'Persist a Chat-authored evaluation report and tracker row without using Gemini. Supports --company, --role, --score, --report-body-file or --report-body, plus metadata fields.' },
       { action: 'package', description: 'Generate a tailored CV + cover letter package from a JD file and optional report context.' },
+      { action: 'quality-package-row', description: 'High-level package workflow for an existing tracker row. Without JSON inputs, returns row context + quality rules. With --brief-json and --letter-json, runs quality checks and builds the package.' },
       { action: 'apply-prep', description: 'Evaluate a role and generate the tailored package in one step.' },
       { action: 'update-application', description: 'Update an existing tracker row by number. Supports --num N, optional --status STATE, --pdf ✅|❌, --notes TEXT, and --replace-notes.' },
       { action: 'update-inbox', description: 'Update a pipeline inbox item by URL. Supports --url URL, --state pending|processed|issue, optional --note TEXT, and --replace-note.' },
@@ -1417,6 +1764,7 @@ function buildHelp() {
       'node chat-ops.mjs update-application --num 73 --status Applied --notes "Applied via company site"',
       'node chat-ops.mjs mark-inbox-stale --url https://example.com/job --note "Expired shell"',
       'node chat-ops.mjs record-evaluation --company "Acme" --role "Senior Instructional Designer" --score "4.2/5" --report-body-file output/report-body.md --dry-run',
+      'node chat-ops.mjs quality-package-row --num 77',
     ],
   };
 }
@@ -1872,6 +2220,8 @@ async function main() {
     }
   } else if (action === 'record-evaluation') {
     result = recordEvaluation(parsed.flags);
+  } else if (action === 'quality-package-row') {
+    result = buildQualityPackageForRow(parsed.flags);
   } else if (action === 'update-application') {
     result = updateApplicationRow(parsed.flags);
   } else if (action === 'update-inbox') {
