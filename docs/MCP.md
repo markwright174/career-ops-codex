@@ -28,6 +28,8 @@ The MCP layer exposes named tools such as:
 - `evaluate_role`
 - `prepare_package`
 - `prepare_application`
+- `update_application_status`
+- `update_inbox_item`
 
 ## Local Startup
 
@@ -70,6 +72,13 @@ Enable write tools only intentionally:
 
 ```powershell
 $env:CAREER_OPS_MCP_ALLOW_WRITE = '1'
+```
+
+Or use the dedicated OAuth startup helpers in this repo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-mcp-oauth-readonly.ps1
+powershell -ExecutionPolicy Bypass -File .\start-mcp-oauth-write.ps1
 ```
 
 ## OAuth / Auth0 Mode
@@ -157,12 +166,16 @@ Write-capable tools remain guarded because they can create or update:
 - tracker TSV additions
 - merged tracker rows
 - generated CV / cover letter artifacts
+- existing tracker statuses / notes
+- pipeline inbox item states / notes
 
 The write tools still reuse the repo’s normal flow:
 
 - tracker additions via TSV
 - `merge-tracker.mjs`
 - `verify-pipeline.mjs`
+- existing tracker row updates only for status/notes/PDF fields
+- existing pipeline row updates only for state/note fields
 
 ## Recommended Use
 

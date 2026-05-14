@@ -84,6 +84,21 @@ const HIGH_RISK_SIGNALS = [
   'campus',
   'principal customer success',
 ];
+const CANONICAL_STATUSES = new Set([
+  'Evaluated',
+  'Applied',
+  'Responded',
+  'Interview',
+  'Offer',
+  'Rejected',
+  'Discarded',
+  'SKIP',
+]);
+const PIPELINE_MARKERS = {
+  pending: ' ',
+  processed: 'x',
+  issue: '!',
+};
 
 function parseArgs(argv) {
   const args = argv.slice(2);
@@ -744,6 +759,8 @@ function buildHelp() {
       { action: 'evaluate', description: 'Run the Gemini-backed evaluation pipeline for a JD URL or file. Supports --url, --jd-file, and optional --with-package.' },
       { action: 'package', description: 'Generate a tailored CV + cover letter package from a JD file and optional report context.' },
       { action: 'apply-prep', description: 'Evaluate a role and generate the tailored package in one step.' },
+      { action: 'update-application', description: 'Update an existing tracker row by number. Supports --num N, optional --status STATE, --pdf ✅|❌, --notes TEXT, and --replace-notes.' },
+      { action: 'update-inbox', description: 'Update a pipeline inbox item by URL. Supports --url URL, --state pending|processed|issue, optional --note TEXT, and --replace-note.' },
       { action: 'verify', description: 'Run verify-pipeline.mjs and return pass/fail with captured output.' },
       { action: 'sync-check', description: 'Run cv-sync-check.mjs and return pass/fail with captured output.' },
       { action: 'project-profile', description: 'Generate and return the ChatGPT-friendly markdown profile mirror.' },
@@ -759,7 +776,183 @@ function buildHelp() {
       'node chat-ops.mjs tracker --status Applied --limit 8',
       'node chat-ops.mjs quick-apply',
       'node chat-ops.mjs liveness https://example.com/job/123',
+      'node chat-ops.mjs update-application --num 73 --status Applied --notes "Applied via company site"',
     ],
+  };
+}
+
+function appendOrReplaceNote(existing, incoming, replace = false) {
+  const next = String(incoming || '').trim();
+  if (!next) return String(existing || '');
+  if (replace) return next;
+  const current = String(existing || '').trim();
+  if (!current) return next;
+  return `${current} | ${next}`;
+}
+
+function updateApplicationRow(flags = {}) {
+  const num = parseInt(flags.num, 10);
+  if (Number.isNaN(num)) {
+    return { ok: false, error: 'A numeric --num is required for update-application.' };
+  }
+
+  if (!existsSync(APPS_FILE)) {
+    return { ok: false, error: 'Tracker file does not exist.' };
+  }
+
+  const nextStatus = flags.status ? String(flags.status).trim() : null;
+  if (nextStatus && !CANONICAL_STATUSES.has(nextStatus)) {
+    return {
+      ok: false,
+      error: `Status must be one of: ${Array.from(CANONICAL_STATUSES).join(', ')}`,
+    };
+  }
+
+  const nextPdf = flags.pdf ? String(flags.pdf).trim() : null;
+  if (nextPdf && !['✅', '❌'].includes(nextPdf)) {
+    return { ok: false, error: 'PDF must be either ✅ or ❌.' };
+  }
+
+  const lines = readFileSync(APPS_FILE, 'utf-8').split(/\r?\n/);
+  let updated = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.startsWith('|')) continue;
+    if (line.includes('---') || line.includes('| # |')) continue;
+    const parts = line.split('|').map((value) => value.trim());
+    if (parts.length < 10) continue;
+    const rowNum = parseInt(parts[1], 10);
+    if (rowNum !== num) continue;
+
+    const nextNotes = flags.notes !== undefined
+      ? appendOrReplaceNote(parts[9] || '', flags.notes, Boolean(flags['replace-notes']))
+      : (parts[9] || '');
+
+    const row = {
+      num: rowNum,
+      date: parts[2],
+      company: parts[3],
+      role: parts[4],
+      score: parts[5],
+      status: nextStatus || parts[6],
+      pdf: nextPdf || parts[7],
+      report: parts[8],
+      notes: nextNotes,
+    };
+
+    lines[i] = `| ${row.num} | ${row.date} | ${row.company} | ${row.role} | ${row.score} | ${row.status} | ${row.pdf} | ${row.report} | ${row.notes} |`;
+    updated = row;
+    break;
+  }
+
+  if (!updated) {
+    return { ok: false, error: `Could not find tracker row #${num}.` };
+  }
+
+  writeFileSync(APPS_FILE, lines.join('\n'), 'utf-8');
+  const verify = runNodeScript('verify-pipeline.mjs');
+  logAction({
+    actor: 'chat-ops',
+    action: 'update-application',
+    num,
+    updated_fields: {
+      status: nextStatus,
+      pdf: nextPdf,
+      notes: flags.notes ?? null,
+      replace_notes: Boolean(flags['replace-notes']),
+    },
+    ok: verify.ok,
+  });
+
+  return {
+    action: 'update-application',
+    ok: verify.ok,
+    updated: updated,
+    verify: {
+      ok: verify.ok,
+      exit_code: verify.status,
+      stdout: verify.stdout.trim(),
+      stderr: verify.stderr.trim(),
+    },
+  };
+}
+
+function updateInboxItem(flags = {}) {
+  const targetUrl = String(flags.url || '').trim();
+  if (!targetUrl) {
+    return { ok: false, error: 'A --url is required for update-inbox.' };
+  }
+
+  const nextState = String(flags.state || '').trim().toLowerCase();
+  if (!PIPELINE_MARKERS[nextState]) {
+    return { ok: false, error: 'State must be one of: pending, processed, issue.' };
+  }
+
+  if (!existsSync(PIPELINE_FILE)) {
+    return { ok: false, error: 'Pipeline file does not exist.' };
+  }
+
+  const lines = readFileSync(PIPELINE_FILE, 'utf-8').split(/\r?\n/);
+  let updated = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const match = lines[i].match(/^- \[([ x!])\] (.+)$/);
+    if (!match) continue;
+    const body = match[2];
+    const parts = body.split(' | ').map((part) => part.trim());
+    const url = parts[0] || '';
+    if (url !== targetUrl) continue;
+
+    const company = parts[1] || '';
+    const title = parts[2] || '';
+    const existingNote = parts.slice(3).join(' | ');
+    const nextNote = flags.note !== undefined
+      ? appendOrReplaceNote(existingNote, flags.note, Boolean(flags['replace-note']))
+      : existingNote;
+
+    const nextBodyParts = [url, company, title];
+    if (nextNote) nextBodyParts.push(nextNote);
+    lines[i] = `- [${PIPELINE_MARKERS[nextState]}] ${nextBodyParts.join(' | ')}`;
+
+    updated = {
+      url,
+      company,
+      title,
+      state: nextState,
+      note: nextNote,
+    };
+    break;
+  }
+
+  if (!updated) {
+    return { ok: false, error: `Could not find pipeline item for URL: ${targetUrl}` };
+  }
+
+  writeFileSync(PIPELINE_FILE, lines.join('\n'), 'utf-8');
+  const verify = runNodeScript('verify-pipeline.mjs');
+  logAction({
+    actor: 'chat-ops',
+    action: 'update-inbox',
+    url: targetUrl,
+    updated_fields: {
+      state: nextState,
+      note: flags.note ?? null,
+      replace_note: Boolean(flags['replace-note']),
+    },
+    ok: verify.ok,
+  });
+
+  return {
+    action: 'update-inbox',
+    ok: verify.ok,
+    updated,
+    verify: {
+      ok: verify.ok,
+      exit_code: verify.status,
+      stdout: verify.stdout.trim(),
+      stderr: verify.stderr.trim(),
+    },
   };
 }
 
@@ -832,6 +1025,10 @@ async function main() {
       stdout: run.stdout.trim(),
       stderr: run.stderr.trim(),
     };
+  } else if (action === 'update-application') {
+    result = updateApplicationRow(parsed.flags);
+  } else if (action === 'update-inbox') {
+    result = updateInboxItem(parsed.flags);
   } else if (action === 'verify') {
     const run = runNodeScript('verify-pipeline.mjs');
     result = {

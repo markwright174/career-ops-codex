@@ -125,8 +125,7 @@ safe write layer.
 Only after read-only testing feels solid:
 
 ```powershell
-$env:CAREER_OPS_MCP_ALLOW_WRITE = '1'
-npm run mcp
+powershell -ExecutionPolicy Bypass -File .\start-mcp-oauth-write.ps1
 ```
 
 Then reconnect or restart the remote session.
@@ -136,6 +135,11 @@ This enables:
 - `evaluate_role`
 - `prepare_package`
 - `prepare_application`
+- `update_application_status`
+- `update_inbox_item`
+
+For OAuth-based write sessions, make sure the ChatGPT app requests
+`career_ops:write` in addition to the normal identity scopes.
 
 ## Suggested First ChatGPT Tests
 

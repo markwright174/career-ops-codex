@@ -443,6 +443,45 @@ const TOOLS = [
       return { action: 'apply-prep', flags };
     },
   },
+  {
+    name: 'update_application_status',
+    title: 'Update Application Status',
+    kind: 'write',
+    description: 'Update an existing tracker row by number using canonical statuses and optional notes/PDF changes.',
+    inputSchema: objectSchema({
+      num: { type: 'number', minimum: 1, description: 'Tracker row number to update.' },
+      status: { type: 'string', description: 'Canonical status such as Applied, Responded, Interview, Offer, Rejected, Discarded, or SKIP.' },
+      pdf: { type: 'string', enum: ['✅', '❌'], description: 'Optional PDF status override.' },
+      notes: { type: 'string', description: 'Optional note text to append or replace.' },
+      replace_notes: { type: 'boolean', description: 'Replace existing notes instead of appending.' },
+    }, ['num']),
+    invoke(args = {}) {
+      const flags = {};
+      for (const [key, value] of Object.entries(args)) {
+        if (value !== undefined) flags[normalizeToolArgName(key)] = value;
+      }
+      return { action: 'update-application', flags };
+    },
+  },
+  {
+    name: 'update_inbox_item',
+    title: 'Update Inbox Item',
+    kind: 'write',
+    description: 'Update an existing pipeline inbox item by URL, including state and note text.',
+    inputSchema: objectSchema({
+      url: { type: 'string', description: 'Exact pipeline URL to update.' },
+      state: { type: 'string', enum: ['pending', 'processed', 'issue'], description: 'New pipeline state.' },
+      note: { type: 'string', description: 'Optional note text to append or replace.' },
+      replace_note: { type: 'boolean', description: 'Replace the existing note instead of appending.' },
+    }, ['url', 'state']),
+    invoke(args = {}) {
+      const flags = {};
+      for (const [key, value] of Object.entries(args)) {
+        if (value !== undefined) flags[normalizeToolArgName(key)] = value;
+      }
+      return { action: 'update-inbox', flags };
+    },
+  },
 ];
 
 const TOOL_MAP = new Map(TOOLS.map((tool) => [tool.name, tool]));
