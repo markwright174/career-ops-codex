@@ -405,6 +405,35 @@ const TOOLS = [
     },
   },
   {
+    name: 'record_evaluation',
+    title: 'Record Evaluation',
+    kind: 'write',
+    description: 'Persist a Chat-authored evaluation report and tracker row without using Gemini.',
+    inputSchema: objectSchema({
+      company: { type: 'string', description: 'Company name.' },
+      role: { type: 'string', description: 'Role title.' },
+      score: { type: 'string', description: 'Score string such as 4.2/5.' },
+      report_body: { type: 'string', description: 'Markdown body for the evaluation report, typically starting at section A.' },
+      report_body_file: { type: 'string', description: 'Absolute or repo-relative path to a markdown file containing the report body.' },
+      url: { type: 'string', description: 'Original job URL.' },
+      archetype: { type: 'string', description: 'Detected archetype or lane.' },
+      verification: { type: 'string', description: 'Verification note for the report header.' },
+      legitimacy: { type: 'string', description: 'Legitimacy assessment such as High Confidence.' },
+      status: { type: 'string', description: 'Canonical tracker status. Defaults to Evaluated.' },
+      pdf: { type: 'string', enum: ['✅', '❌'], description: 'PDF status for the tracker/report. Defaults to ❌.' },
+      notes: { type: 'string', description: 'Tracker notes for the created row.' },
+      date: { type: 'string', description: 'ISO date override (YYYY-MM-DD).' },
+      dry_run: { type: 'boolean', description: 'Validate and preview output paths/content without writing files.' },
+    }, ['company', 'role', 'score']),
+    invoke(args = {}) {
+      const flags = {};
+      for (const [key, value] of Object.entries(args)) {
+        if (value !== undefined) flags[normalizeToolArgName(key)] = value;
+      }
+      return { action: 'record-evaluation', flags };
+    },
+  },
+  {
     name: 'prepare_package',
     title: 'Prepare Package',
     kind: 'write',

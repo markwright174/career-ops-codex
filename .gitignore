@@ -25,6 +25,8 @@ modes/_profile.md
 # Generated
 .resolved-prompt-*
 node_modules/
+.env
+.env.local
 
 # OS
 .DS_Store

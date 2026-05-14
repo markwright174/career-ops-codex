@@ -26,6 +26,7 @@ The MCP layer exposes named tools such as:
 - `show_repo_summary`
 - `show_attention_report`
 - `evaluate_role`
+- `record_evaluation`
 - `prepare_package`
 - `prepare_application`
 - `update_application_status`
@@ -176,6 +177,20 @@ The write tools still reuse the repo’s normal flow:
 - `verify-pipeline.mjs`
 - existing tracker row updates only for status/notes/PDF fields
 - existing pipeline row updates only for state/note fields
+
+## Hybrid Evaluation Mode
+
+If you want ChatGPT to do the reasoning itself instead of relying on the
+Gemini-backed repo evaluator, use the `record_evaluation` tool:
+
+1. ChatGPT reads the job posting and writes the evaluation in-chat
+2. ChatGPT calls `record_evaluation`
+3. Career-Ops writes:
+   - a report in `reports/`
+   - a tracker TSV addition in `batch/tracker-additions/`
+   - then runs `merge-tracker.mjs` and `verify-pipeline.mjs`
+
+This keeps the repo canonical without forcing every evaluation through Gemini.
 
 ## Recommended Use
 

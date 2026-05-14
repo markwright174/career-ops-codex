@@ -133,6 +133,7 @@ Then reconnect or restart the remote session.
 This enables:
 
 - `evaluate_role`
+- `record_evaluation`
 - `prepare_package`
 - `prepare_application`
 - `update_application_status`
@@ -140,6 +141,16 @@ This enables:
 
 For OAuth-based write sessions, make sure the ChatGPT app requests
 `career_ops:write` in addition to the normal identity scopes.
+
+### Hybrid evaluation flow
+
+If Gemini quota is unavailable or you prefer ChatGPT to do the actual reasoning,
+use this pattern:
+
+1. ChatGPT reads and evaluates the role in conversation
+2. ChatGPT calls `record_evaluation` with the structured result
+3. Career-Ops persists the report and tracker row through the normal merge and
+   verify flow
 
 ## Suggested First ChatGPT Tests
 

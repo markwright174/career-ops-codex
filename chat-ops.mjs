@@ -20,7 +20,7 @@
  *   node chat-ops.mjs liveness <url1> [url2]
  */
 
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
 import { dirname, join, resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
@@ -33,6 +33,7 @@ const SCAN_HISTORY_FILE = join(ROOT, 'data', 'scan-history.tsv');
 const PROFILE_FILE = join(ROOT, 'config', 'profile.yml');
 const OUTPUT_DIR = join(ROOT, 'output');
 const REPORTS_DIR = join(ROOT, 'reports');
+const TRACKER_ADDITIONS_DIR = join(ROOT, 'batch', 'tracker-additions');
 const PRIMARY_TITLE_SIGNALS = [
   'instructional design manager',
   'senior learning experience designer',
@@ -513,6 +514,10 @@ function daysSince(dateString) {
   return Math.floor((Date.now() - parsed.getTime()) / 86400000);
 }
 
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function buildAttentionReport(rows) {
   const applied = rows
     .filter((row) => row.status === 'Applied')
@@ -757,6 +762,7 @@ function buildHelp() {
       { action: 'evaluated', description: 'Alias for tracker --status Evaluated.' },
       { action: 'shortlist', description: 'Heuristic triage of inbox items into shortlist, review, and reject buckets. Optional --include-issues.' },
       { action: 'evaluate', description: 'Run the Gemini-backed evaluation pipeline for a JD URL or file. Supports --url, --jd-file, and optional --with-package.' },
+      { action: 'record-evaluation', description: 'Persist a Chat-authored evaluation report and tracker row without using Gemini. Supports --company, --role, --score, --report-body-file or --report-body, plus metadata fields.' },
       { action: 'package', description: 'Generate a tailored CV + cover letter package from a JD file and optional report context.' },
       { action: 'apply-prep', description: 'Evaluate a role and generate the tailored package in one step.' },
       { action: 'update-application', description: 'Update an existing tracker row by number. Supports --num N, optional --status STATE, --pdf ✅|❌, --notes TEXT, and --replace-notes.' },
@@ -780,6 +786,7 @@ function buildHelp() {
       'node chat-ops.mjs liveness https://example.com/job/123',
       'node chat-ops.mjs update-application --num 73 --status Applied --notes "Applied via company site"',
       'node chat-ops.mjs mark-inbox-stale --url https://example.com/job --note "Expired shell"',
+      'node chat-ops.mjs record-evaluation --company "Acme" --role "Senior Instructional Designer" --score "4.2/5" --report-body-file output/report-body.md --dry-run',
     ],
   };
 }
@@ -976,6 +983,179 @@ function markInboxStale(flags = {}) {
   });
 }
 
+function nextTrackerNumberLocal() {
+  const rows = parseApplications();
+  return (rows.length ? Math.max(...rows.map((row) => row.num)) : 0) + 1;
+}
+
+function buildEvaluationReportContent({
+  company,
+  role,
+  date,
+  archetype,
+  score,
+  url,
+  verification,
+  legitimacy,
+  pdf,
+  body,
+}) {
+  const reportBody = String(body || '').trim();
+  return [
+    `# Evaluation: ${company} - ${role}`,
+    '',
+    `**Date:** ${date}`,
+    `**Archetype:** ${archetype || 'Not specified'}`,
+    `**Score:** ${score}`,
+    `**URL:** ${url || 'inline text'}`,
+    `**Verification:** ${verification || 'Manual evaluation recorded through MCP hybrid flow.'}`,
+    `**Legitimacy:** ${legitimacy || 'Unspecified'}`,
+    `**PDF:** ${pdf}`,
+    '',
+    '---',
+    '',
+    reportBody,
+  ].join('\n');
+}
+
+function recordEvaluation(flags = {}) {
+  const company = String(flags.company || '').trim();
+  const role = String(flags.role || '').trim();
+  const score = String(flags.score || '').trim();
+  if (!company || !role || !score) {
+    return { ok: false, error: 'record-evaluation requires --company, --role, and --score.' };
+  }
+
+  const date = String(flags.date || todayIso()).trim();
+  const status = String(flags.status || 'Evaluated').trim();
+  if (!CANONICAL_STATUSES.has(status)) {
+    return { ok: false, error: `Status must be one of: ${Array.from(CANONICAL_STATUSES).join(', ')}` };
+  }
+
+  const pdf = String(flags.pdf || '❌').trim();
+  if (!['✅', '❌'].includes(pdf)) {
+    return { ok: false, error: 'PDF must be either ✅ or ❌.' };
+  }
+
+  let reportBody = '';
+  if (flags['report-body-file']) {
+    const reportBodyPath = resolve(String(flags['report-body-file']));
+    if (!existsSync(reportBodyPath)) {
+      return { ok: false, error: `Report body file not found: ${reportBodyPath}` };
+    }
+    reportBody = readFileSync(reportBodyPath, 'utf-8');
+  } else if (flags['report-body']) {
+    reportBody = String(flags['report-body']);
+  }
+
+  if (!String(reportBody || '').trim()) {
+    return { ok: false, error: 'record-evaluation requires --report-body or --report-body-file.' };
+  }
+
+  const trackerNum = nextTrackerNumberLocal();
+  const reportNum = String(trackerNum).padStart(3, '0');
+  const reportRel = `reports/${reportNum}-${slugify(company)}-${date}.md`;
+  const reportPath = join(ROOT, reportRel);
+  const reportCell = `[${reportNum}](${reportRel})`;
+  const trackerNotes = String(flags.notes || '').trim();
+  const reportContent = buildEvaluationReportContent({
+    company,
+    role,
+    date,
+    archetype: flags.archetype,
+    score,
+    url: flags.url,
+    verification: flags.verification,
+    legitimacy: flags.legitimacy,
+    pdf,
+    body: reportBody,
+  });
+
+  const additionLine = [
+    trackerNum,
+    date,
+    company,
+    role,
+    status,
+    score,
+    pdf,
+    reportCell,
+    trackerNotes,
+  ].join('\t');
+
+  if (parsedBool(flags['dry-run'])) {
+    return {
+      action: 'record-evaluation',
+      ok: true,
+      dry_run: true,
+      planned: {
+        tracker_num: trackerNum,
+        report_path: reportPath,
+        tracker_addition_path: join(TRACKER_ADDITIONS_DIR, `${reportNum}-${slugify(company)}-${date}.tsv`),
+        tracker_line: additionLine,
+      },
+      report_preview: reportContent,
+    };
+  }
+
+  mkdirSync(REPORTS_DIR, { recursive: true });
+  mkdirSync(TRACKER_ADDITIONS_DIR, { recursive: true });
+  writeFileSync(reportPath, `${reportContent.trim()}\n`, 'utf-8');
+  const additionPath = join(TRACKER_ADDITIONS_DIR, `${reportNum}-${slugify(company)}-${date}.tsv`);
+  writeFileSync(additionPath, `${additionLine}\n`, 'utf-8');
+
+  const merge = runNodeScript('merge-tracker.mjs');
+  if (!merge.ok) {
+    return {
+      action: 'record-evaluation',
+      ok: false,
+      error: 'Tracker merge failed after writing report/addition.',
+      report_path: reportPath,
+      tracker_addition_path: additionPath,
+      merge: {
+        exit_code: merge.status,
+        stdout: merge.stdout.trim(),
+        stderr: merge.stderr.trim(),
+      },
+    };
+  }
+
+  const verify = runNodeScript('verify-pipeline.mjs');
+  logAction({
+    actor: 'chat-ops',
+    action: 'record-evaluation',
+    company,
+    role,
+    status,
+    score,
+    report: reportPath,
+    tracker_addition: additionPath,
+    ok: verify.ok,
+  });
+
+  return {
+    action: 'record-evaluation',
+    ok: verify.ok,
+    created: {
+      tracker_num: trackerNum,
+      report_path: reportPath,
+      tracker_addition_path: additionPath,
+    },
+    verify: {
+      ok: verify.ok,
+      exit_code: verify.status,
+      stdout: verify.stdout.trim(),
+      stderr: verify.stderr.trim(),
+    },
+  };
+}
+
+function parsedBool(value) {
+  if (value === true) return true;
+  if (value === false || value === undefined || value === null) return false;
+  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+}
+
 async function main() {
   const parsed = parseArgs(process.argv);
   const action = parsed.action;
@@ -1045,6 +1225,8 @@ async function main() {
       stdout: run.stdout.trim(),
       stderr: run.stderr.trim(),
     };
+  } else if (action === 'record-evaluation') {
+    result = recordEvaluation(parsed.flags);
   } else if (action === 'update-application') {
     result = updateApplicationRow(parsed.flags);
   } else if (action === 'update-inbox') {
