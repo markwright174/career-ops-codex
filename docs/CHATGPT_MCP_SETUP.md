@@ -152,6 +152,16 @@ use this pattern:
 3. Career-Ops persists the report and tracker row through the normal merge and
    verify flow
 
+### Hybrid package flow
+
+If Gemini package generation is unavailable or you prefer ChatGPT to do the
+tailoring itself, use this pattern:
+
+1. ChatGPT reads the JD and the saved evaluation report
+2. ChatGPT writes the tailored CV brief JSON and cover-letter JSON in chat
+3. ChatGPT calls `prepare_package` with `brief` and `letter`
+4. Career-Ops builds the HTML/PDF artifacts and updates tracker PDF status
+
 ## Suggested First ChatGPT Tests
 
 After the app is connected, use prompts like:

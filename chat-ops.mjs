@@ -24,7 +24,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { dirname, join, resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
-import { logAction } from './repo-ops-lib.mjs';
+import { inferPaperFormat, logAction, PATHS, readYaml, updateTrackerPdfStatus } from './repo-ops-lib.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const APPS_FILE = join(ROOT, 'data', 'applications.md');
@@ -164,6 +164,14 @@ function parseSimpleYaml(content) {
   return root;
 }
 
+function safeJsonParse(text, label) {
+  try {
+    return JSON.parse(String(text || ''));
+  } catch (err) {
+    throw new Error(`Invalid ${label} JSON: ${err.message}`);
+  }
+}
+
 function slugify(text) {
   return String(text || '')
     .toLowerCase()
@@ -264,6 +272,144 @@ function parsePipeline() {
   }
 
   return items;
+}
+
+function buildPackageFromStructuredInput(flags = {}) {
+  const briefJson = flags['brief-json'] || flags.brief_json;
+  const letterJson = flags['letter-json'] || flags.letter_json;
+  if (!briefJson || !letterJson) {
+    throw new Error('Hybrid package build requires both brief_json and letter_json.');
+  }
+
+  const brief = safeJsonParse(briefJson, 'brief');
+  const letter = safeJsonParse(letterJson, 'letter');
+  const profile = readYaml(PATHS.profile, {});
+  const candidateSlug = slugify(profile?.candidate?.full_name || 'candidate');
+  const company = String(flags.company || 'unknown-company').trim();
+  const role = String(flags.role || 'unknown-role').trim();
+  const companySlug = slugify(company || 'unknown-company');
+  const date = String(flags.date || todayIso()).trim();
+  const format = String(
+    flags.format
+      || brief.format
+      || letter.format
+      || inferPaperFormat(String(flags.location || profile?.candidate?.location || ''), 'letter')
+  ).toLowerCase();
+  const report = flags.report ? String(flags.report) : null;
+  const url = flags.url ? String(flags.url) : null;
+  const dryRun = String(flags['dry-run'] || flags.dry_run || '').toLowerCase() === 'true';
+
+  if (!company) throw new Error('company is required for hybrid package build.');
+  if (!role) throw new Error('role is required for hybrid package build.');
+  if (!['letter', 'a4'].includes(format)) {
+    throw new Error(`Unsupported format "${format}". Use letter or a4.`);
+  }
+
+  brief.format = format;
+  letter.format = format;
+
+  const briefPath = join(OUTPUT_DIR, `cv-${candidateSlug}-${companySlug}-${date}.brief.json`);
+  const letterPath = join(OUTPUT_DIR, `cover-letter-${candidateSlug}-${companySlug}-${date}.json`);
+  const cvHtmlPath = join(OUTPUT_DIR, `cv-${candidateSlug}-${companySlug}-${date}.html`);
+  const cvPdfPath = join(OUTPUT_DIR, `cv-${candidateSlug}-${companySlug}-${date}.pdf`);
+  const coverHtmlPath = join(OUTPUT_DIR, `cover-letter-${candidateSlug}-${companySlug}-${date}.html`);
+  const coverPdfPath = join(OUTPUT_DIR, `cover-letter-${candidateSlug}-${companySlug}-${date}.pdf`);
+
+  const payload = {
+    action: 'package',
+    ok: true,
+    mode: 'hybrid',
+    company,
+    role,
+    format,
+    date,
+    report,
+    url,
+    outputs: {
+      brief_json: briefPath,
+      cv_html: cvHtmlPath,
+      cv_pdf: cvPdfPath,
+      cover_letter_json: letterPath,
+      cover_letter_html: coverHtmlPath,
+      cover_letter_pdf: coverPdfPath,
+    },
+  };
+
+  if (dryRun) {
+    return {
+      ...payload,
+      dry_run: true,
+      brief_preview: brief,
+      letter_preview: letter,
+    };
+  }
+
+  mkdirSync(OUTPUT_DIR, { recursive: true });
+  writeFileSync(briefPath, `${JSON.stringify(brief, null, 2)}\n`, 'utf-8');
+  writeFileSync(letterPath, `${JSON.stringify(letter, null, 2)}\n`, 'utf-8');
+
+  const cvRun = runNodeScript('build-tailored-cv.mjs', [
+    briefPath,
+    '--html', cvHtmlPath,
+    '--pdf', cvPdfPath,
+    `--format=${format}`,
+  ]);
+  if (!cvRun.ok) {
+    return {
+      action: 'package',
+      ok: false,
+      mode: 'hybrid',
+      exit_code: cvRun.status,
+      stdout: cvRun.stdout.trim(),
+      stderr: cvRun.stderr.trim(),
+      failed_step: 'build-tailored-cv',
+    };
+  }
+
+  const letterRun = runNodeScript('build-cover-letter.mjs', [
+    letterPath,
+    '--html', coverHtmlPath,
+    '--pdf', coverPdfPath,
+    `--format=${format}`,
+  ]);
+  if (!letterRun.ok) {
+    return {
+      action: 'package',
+      ok: false,
+      mode: 'hybrid',
+      exit_code: letterRun.status,
+      stdout: letterRun.stdout.trim(),
+      stderr: letterRun.stderr.trim(),
+      failed_step: 'build-cover-letter',
+    };
+  }
+
+  const pdfUpdated = updateTrackerPdfStatus(company, role, '✅');
+  const verifyRun = runNodeScript('verify-pipeline.mjs');
+
+  logAction({
+    actor: 'chat-ops',
+    action: 'hybrid-package',
+    company,
+    role,
+    report,
+    url,
+    outputs: payload.outputs,
+    pdf_updated: pdfUpdated,
+    verify_ok: verifyRun.ok,
+  });
+
+  return {
+    ...payload,
+    dry_run: false,
+    pdf_updated: pdfUpdated,
+    verify: {
+      ok: verifyRun.ok,
+      exit_code: verifyRun.status,
+      stdout: verifyRun.stdout.trim(),
+      stderr: verifyRun.stderr.trim(),
+    },
+  };
 }
 
 function parseScanHistory() {
@@ -1206,25 +1352,40 @@ async function main() {
       stderr: run.stderr.trim(),
     };
   } else if (action === 'package') {
-    const scriptArgs = [];
-    if (parsed.flags['jd-file']) scriptArgs.push('--jd-file', String(parsed.flags['jd-file']));
-    if (parsed.flags.text) scriptArgs.push('--text', String(parsed.flags.text));
-    if (parsed.flags.report) scriptArgs.push('--report', String(parsed.flags.report));
-    if (parsed.flags.company) scriptArgs.push('--company', String(parsed.flags.company));
-    if (parsed.flags.role) scriptArgs.push('--role', String(parsed.flags.role));
-    if (parsed.flags.url) scriptArgs.push('--url', String(parsed.flags.url));
-    const run = runNodeScript('gemini-package.mjs', scriptArgs);
-    result = run.ok ? {
-      action,
-      ok: true,
-      ...JSON.parse(run.stdout),
-    } : {
-      action,
-      ok: false,
-      exit_code: run.status,
-      stdout: run.stdout.trim(),
-      stderr: run.stderr.trim(),
-    };
+    if (parsed.flags['brief-json'] || parsed.flags.brief_json) {
+      try {
+        result = buildPackageFromStructuredInput(parsed.flags);
+      } catch (err) {
+        result = {
+          action,
+          ok: false,
+          mode: 'hybrid',
+          error: err.message,
+        };
+      }
+    } else {
+      const scriptArgs = [];
+      if (parsed.flags['jd-file']) scriptArgs.push('--jd-file', String(parsed.flags['jd-file']));
+      if (parsed.flags.text) scriptArgs.push('--text', String(parsed.flags.text));
+      if (parsed.flags.report) scriptArgs.push('--report', String(parsed.flags.report));
+      if (parsed.flags.company) scriptArgs.push('--company', String(parsed.flags.company));
+      if (parsed.flags.role) scriptArgs.push('--role', String(parsed.flags.role));
+      if (parsed.flags.url) scriptArgs.push('--url', String(parsed.flags.url));
+      const run = runNodeScript('gemini-package.mjs', scriptArgs);
+      result = run.ok ? {
+        action,
+        ok: true,
+        mode: 'gemini',
+        ...JSON.parse(run.stdout),
+      } : {
+        action,
+        ok: false,
+        mode: 'gemini',
+        exit_code: run.status,
+        stdout: run.stdout.trim(),
+        stderr: run.stderr.trim(),
+      };
+    }
   } else if (action === 'record-evaluation') {
     result = recordEvaluation(parsed.flags);
   } else if (action === 'update-application') {

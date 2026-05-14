@@ -192,6 +192,23 @@ Gemini-backed repo evaluator, use the `record_evaluation` tool:
 
 This keeps the repo canonical without forcing every evaluation through Gemini.
 
+## Hybrid Package Mode
+
+`prepare_package` now supports a hybrid path too:
+
+1. ChatGPT authors the tailored CV brief JSON and cover-letter JSON
+2. ChatGPT calls `prepare_package` with `brief` and `letter`
+3. Career-Ops writes the JSON artifacts into `output/`
+4. Career-Ops runs:
+   - `build-tailored-cv.mjs`
+   - `build-cover-letter.mjs`
+   - PDF generation
+   - tracker PDF-status update
+   - `verify-pipeline.mjs`
+
+This lets ChatGPT do the tailoring while the repo still owns artifact creation
+and tracker updates, without depending on Gemini for package generation.
+
 ## Recommended Use
 
 For the safest day-to-day setup:

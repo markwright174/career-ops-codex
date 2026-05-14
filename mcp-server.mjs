@@ -437,19 +437,29 @@ const TOOLS = [
     name: 'prepare_package',
     title: 'Prepare Package',
     kind: 'write',
-    description: 'Generate a tailored CV and cover letter package from a JD and optional report context.',
+    description: 'Generate a tailored CV and cover letter package either from Chat-authored structured content (hybrid mode) or from the legacy Gemini-backed JD flow.',
     inputSchema: objectSchema({
+      brief: { type: 'object', description: 'Structured CV brief JSON for hybrid mode. Matches build-tailored-cv.mjs input.' },
+      letter: { type: 'object', description: 'Structured cover-letter JSON for hybrid mode. Matches build-cover-letter.mjs input.' },
       jd_file: { type: 'string', description: 'Absolute or repo-relative path to a JD text file.' },
       text: { type: 'string', description: 'Raw job description text.' },
       report: { type: 'string', description: 'Path to a saved report markdown file.' },
       company: { type: 'string', description: 'Company name.' },
       role: { type: 'string', description: 'Role title.' },
       url: { type: 'string', description: 'Original job URL for context.' },
+      date: { type: 'string', description: 'ISO date override (YYYY-MM-DD).' },
+      format: { type: 'string', enum: ['letter', 'a4'], description: 'Optional paper format override for hybrid mode.' },
+      dry_run: { type: 'boolean', description: 'Preview paths and validate payloads without writing files.' },
     }),
     invoke(args = {}) {
       const flags = {};
       for (const [key, value] of Object.entries(args)) {
-        if (value !== undefined) flags[normalizeToolArgName(key)] = value;
+        if (value === undefined) continue;
+        if (key === 'brief' || key === 'letter') {
+          flags[normalizeToolArgName(key)] = JSON.stringify(value);
+        } else {
+          flags[normalizeToolArgName(key)] = value;
+        }
       }
       return { action: 'package', flags };
     },
