@@ -517,6 +517,71 @@ function inferCoverLetterThemes(reportContent = '', row = {}) {
   return inferred.length > 0 ? inferred : themeCatalog.slice(0, 3);
 }
 
+function extractReportRiskSignals(reportContent = '') {
+  const stopwords = new Set([
+    'about', 'across', 'adjacent', 'align', 'also', 'although', 'among', 'and', 'another',
+    'avoid', 'best', 'between', 'bridge', 'bring', 'candidate', 'can', 'claim', 'claims',
+    'confirm', 'confirmed', 'context', 'core', 'credibly', 'current', 'deep', 'direct',
+    'does', 'dont', 'education', 'experience', 'fit', 'focus', 'frame', 'from', 'good',
+    'have', 'highly', 'include', 'includes', 'into', 'keep', 'lane', 'lead', 'leadership',
+    'main', 'mark', 'match', 'more', 'must', 'need', 'not', 'only', 'or', 'other',
+    'overlap', 'overstate', 'owned', 'ownership', 'position', 'posting', 'present',
+    'primary', 'profile', 'project', 'role', 'secondary', 'selectively', 'should',
+    'show', 'signal', 'skills', 'some', 'strength', 'strengths', 'strong', 'support',
+    'supports', 'that', 'the', 'their', 'them', 'these', 'this', 'through', 'treat',
+    'unless', 'use', 'using', 'very', 'with', 'without', 'work', 'works',
+    'instructional', 'design', 'manager', 'management', 'curriculum', 'development',
+    'learning', 'operational', 'operations', 'quality', 'delivery', 'stakeholder',
+    'stakeholders', 'team', 'program', 'programs', 'faculty', 'training', 'reporting',
+    'process', 'processes', 'similar', 'preferred', 'practical', 'specific', 'under',
+    'such', 'which', 'allows', 'allow', 'sits', 'mentions', 'line',
+  ]);
+  const lines = String(reportContent || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim());
+
+  const signals = [];
+  let section = '';
+  for (const line of lines) {
+    if (!line) continue;
+    if (line.startsWith('## ')) {
+      section = line.replace(/^##\s+/, '').trim().toLowerCase();
+      continue;
+    }
+    if (!line.startsWith('- ')) continue;
+
+    const normalized = normalizeText(line);
+    if (!normalized) continue;
+
+    let kind = null;
+    if (/(do not overstate|avoid claiming|unless confirmed|unless present)/i.test(line)) {
+      kind = 'overclaim';
+    } else if (/(adjacency|adjacent|bridge|selectively|secondary|not core strengths?)/i.test(line)) {
+      kind = 'adjacency';
+    } else if (/(does not have|does not appear|not .*specific|not .*direct)/i.test(line)) {
+      kind = 'gap';
+    }
+    if (!kind) continue;
+    if (!/(cv match|level and strategy|personalization plan)/i.test(section)) continue;
+
+    const tokens = [...new Set(
+      normalized
+        .split(' ')
+        .map((token) => token.trim())
+        .filter((token) =>
+          token.length >= 4
+          && !stopwords.has(token)
+          && !/^\d+$/.test(token)
+        )
+    )].slice(0, 8);
+
+    if (tokens.length === 0) continue;
+    signals.push({ kind, line, tokens });
+  }
+
+  return signals;
+}
+
 function buildQualityPackageRules(row, chronology, reportContent = '') {
   const focusRoles = chronology.slice(0, 4).map((entry) => ({
     company: entry.company,
@@ -548,6 +613,7 @@ function buildQualityPackageRules(row, chronology, reportContent = '') {
       'Mention the target role clearly in the opening paragraph.',
       'Mention the company directly in the body.',
       'Reflect at least 2 role-specific themes from the saved evaluation context.',
+      'Do not turn adjacency, bridge experience, or caution areas from the saved report into direct ownership claims.',
       'Do not mention compensation.',
     ],
     cover_letter_focus_themes: coverLetterThemes.map((theme) => theme.label),
@@ -643,6 +709,20 @@ function validateQualityPackageForRow(brief, letter, context) {
     : '';
   if (!/(operations?|priorit|curriculum|stakeholder|course|academic|delivery)/i.test(finalParagraph)) {
     warnings.push('Cover letter closing paragraph may be too generic. Reinforce the operational fit before the signoff.');
+  }
+
+  const boosterPattern = /\b(strong match|well suited|well positioned|my experience includes|my background combines|i would bring|i bring|direct|deep|extensive|expert|owner|ownership|primary)\b/i;
+  for (const signal of Array.isArray(context.report_risk_signals) ? context.report_risk_signals : []) {
+    const matchedTokens = signal.tokens.filter((token) => bodyTextNormalized.includes(token));
+    if (matchedTokens.length < Math.min(2, signal.tokens.length)) continue;
+
+    if (signal.kind === 'adjacency' && boosterPattern.test(bodyText)) {
+      warnings.push(`Cover letter may be turning an adjacency/bridge area into a stronger ownership claim than the saved report supports: "${signal.line}"`);
+    }
+
+    if ((signal.kind === 'overclaim' || signal.kind === 'gap') && boosterPattern.test(bodyText)) {
+      warnings.push(`Cover letter may be overstating a caution area called out in the saved report: "${signal.line}"`);
+    }
   }
 
   return { errors, warnings, changed_roles: changedRoles, changed_focus_roles: changedFocusRoles };
@@ -1222,6 +1302,7 @@ function buildQualityPackageForRow(flags = {}) {
     : null;
   const reportUrl = reportContent ? extractReportUrl(reportContent) : null;
   const rules = buildQualityPackageRules(row, chronology, reportContent || '');
+  const reportRiskSignals = extractReportRiskSignals(reportContent || '');
   const context = {
     num,
     company: row.company,
@@ -1233,6 +1314,7 @@ function buildQualityPackageForRow(flags = {}) {
     report_path: reportRelPath,
     report_url: reportUrl,
     cover_letter_focus_themes: inferCoverLetterThemes(reportContent || '', row),
+    report_risk_signals: reportRiskSignals,
     focus_roles: chronology.slice(0, 4).map((entry) => ({ company: entry.company, role: entry.role })),
   };
   const briefJson = flags['brief-json'] || flags.brief_json;
