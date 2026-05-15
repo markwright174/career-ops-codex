@@ -602,8 +602,11 @@ function buildQualityPackageRules(row, chronology, reportContent = '') {
       'Use only real company/role pairs from CV chronology.',
       'At least two roles should show meaningful bullet overrides beyond the base CV.',
       'At least two focus roles should show tailored bullets when possible.',
+      'Keep the summary credible; avoid stacking absolute scope claims when the role is better framed with measured current ownership.',
+      'Make the strongest role themes visible in real work-history bullets, not only in the summary or projects.',
       'Avoid synthetic umbrella employers, synthetic contexts, or fake roles.',
       'Keep projects additive; do not make projects carry most of the tailoring.',
+      'Do not turn adjacency, bridge experience, or caution areas from the saved report into direct ownership claims.',
       'Prefer restrained workflow/outcome framing over named-product AI/tool emphasis.',
     ],
     cover_letter_requirements: [
@@ -619,6 +622,19 @@ function buildQualityPackageRules(row, chronology, reportContent = '') {
     cover_letter_focus_themes: coverLetterThemes.map((theme) => theme.label),
     focus_roles: focusRoles,
   };
+}
+
+function narrativeSegments(parts = []) {
+  return (Array.isArray(parts) ? parts : [parts])
+    .flatMap((part) => String(part || '').split(/(?<=[.!?])\s+|\n+/))
+    .map((segment) => normalizeText(segment))
+    .filter(Boolean);
+}
+
+function segmentMatchesRiskSignal(segment, signal) {
+  if (!segment || !signal || !Array.isArray(signal.tokens)) return false;
+  const threshold = Math.min(2, signal.tokens.length);
+  return signal.tokens.filter((token) => segment.includes(token)).length >= threshold;
 }
 
 function validateQualityPackageForRow(brief, letter, context) {
@@ -660,6 +676,7 @@ function validateQualityPackageForRow(brief, letter, context) {
   const knownCompanies = new Set(
     parseBaseCvChronology().map((entry) => normalizeCompany(entry.company))
   );
+  const focusBulletText = [];
   for (const project of brief.projects || []) {
     if (project.badge && !knownCompanies.has(normalizeCompany(project.badge))) {
       warnings.push(`Project badge "${project.badge}" does not map to a base CV company. Make sure it adds credible evidence.`);
@@ -667,6 +684,46 @@ function validateQualityPackageForRow(brief, letter, context) {
     const projectText = [project.title, project.description, project.tech].filter(Boolean).join(' ');
     if (/\b(chatgpt|gemini|copilot|claude|openai)\b/i.test(projectText)) {
       warnings.push(`Project "${project.title || 'untitled project'}" uses named-product AI/tool language. Prefer workflow and outcomes unless brand names are clearly useful.`);
+    }
+  }
+
+  for (const entry of brief.experience || []) {
+    const key = `${normalizeCompany(entry.company)}::${normalizeText(entry.role)}`;
+    if (focusKeys.has(key)) {
+      focusBulletText.push(...(entry.bullets || []));
+    }
+  }
+
+  const cvThemeText = normalizeText([
+    brief.summary_text,
+    ...focusBulletText,
+  ].filter(Boolean).join('\n\n'));
+  const cvThemeCoverageCount = (Array.isArray(context.cover_letter_focus_themes) ? context.cover_letter_focus_themes : [])
+    .filter((theme) =>
+      Array.isArray(theme.tokens) && theme.tokens.some((token) => cvThemeText.includes(normalizeText(token)))
+    )
+    .length;
+  if (Array.isArray(context.cover_letter_focus_themes) && context.cover_letter_focus_themes.length > 0 && cvThemeCoverageCount < Math.min(2, context.cover_letter_focus_themes.length)) {
+    warnings.push('CV work-history bullets may not be carrying enough of the role-specific theme coverage. Push more of the tailoring into recent real roles.');
+  }
+
+  const summaryScopeVerbCount = (String(brief.summary_text || '').match(/\b(leads?|oversees?|manages?|directs)\b/gi) || []).length;
+  if (summaryScopeVerbCount >= 3) {
+    warnings.push('CV summary may be stacking too many absolute scope verbs. Consider a slightly more measured summary if the evidence is strong but adjacent.');
+  }
+
+  const cvSegments = narrativeSegments([
+    brief.summary_text,
+    ...(brief.competencies || []),
+    ...((brief.projects || []).flatMap((project) => [project.title, project.description, project.tech])),
+  ]);
+  const cvClaimPattern = /\b(deep|extensive|expert|ownership|owner|primary|federal contract|vha|public trust|clearance|pmp|acquisition|budget(?:ing)?|contract ownership|direct federal|direct contract)\b/i;
+  for (const signal of Array.isArray(context.report_risk_signals) ? context.report_risk_signals : []) {
+    const segmentMatch = cvSegments.some((segment) =>
+      segmentMatchesRiskSignal(segment, signal) && cvClaimPattern.test(segment)
+    );
+    if (segmentMatch && (signal.kind === 'adjacency' || signal.kind === 'overclaim' || signal.kind === 'gap')) {
+      warnings.push(`CV may be overstating a caution or adjacency area from the saved report: "${signal.line}"`);
     }
   }
 
@@ -711,16 +768,19 @@ function validateQualityPackageForRow(brief, letter, context) {
     warnings.push('Cover letter closing paragraph may be too generic. Reinforce the operational fit before the signoff.');
   }
 
+  const bodyParagraphs = Array.isArray(letter.paragraphs) ? letter.paragraphs.map((paragraph) => normalizeText(paragraph)) : [];
   const boosterPattern = /\b(strong match|well suited|well positioned|my experience includes|my background combines|i would bring|i bring|direct|deep|extensive|expert|owner|ownership|primary)\b/i;
   for (const signal of Array.isArray(context.report_risk_signals) ? context.report_risk_signals : []) {
-    const matchedTokens = signal.tokens.filter((token) => bodyTextNormalized.includes(token));
-    if (matchedTokens.length < Math.min(2, signal.tokens.length)) continue;
+    const paragraphMatch = bodyParagraphs.some((paragraph) =>
+      segmentMatchesRiskSignal(paragraph, signal) && boosterPattern.test(paragraph)
+    );
+    if (!paragraphMatch) continue;
 
-    if (signal.kind === 'adjacency' && boosterPattern.test(bodyText)) {
+    if (signal.kind === 'adjacency') {
       warnings.push(`Cover letter may be turning an adjacency/bridge area into a stronger ownership claim than the saved report supports: "${signal.line}"`);
     }
 
-    if ((signal.kind === 'overclaim' || signal.kind === 'gap') && boosterPattern.test(bodyText)) {
+    if (signal.kind === 'overclaim' || signal.kind === 'gap') {
       warnings.push(`Cover letter may be overstating a caution area called out in the saved report: "${signal.line}"`);
     }
   }
@@ -2252,6 +2312,7 @@ async function main() {
     if (parsed.flags.url) scriptArgs.push('--url', String(parsed.flags.url));
     if (parsed.flags['jd-file']) scriptArgs.push('--jd-file', String(parsed.flags['jd-file']));
     if (parsed.flags.text) scriptArgs.push('--text', String(parsed.flags.text));
+    if (parsed.flags.client) scriptArgs.push('--client', String(parsed.flags.client));
     if (parsed.flags['with-package'] || action === 'apply-prep') scriptArgs.push('--with-package');
     const run = runNodeScript('gemini-auto-pipeline.mjs', scriptArgs);
     result = run.ok ? {

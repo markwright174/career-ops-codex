@@ -505,7 +505,7 @@ const TOOLS = [
     name: 'evaluate_role',
     title: 'Evaluate Role',
     kind: 'write',
-    description: 'Run the Gemini-backed evaluation pipeline for a role URL, JD file, or pasted JD text.',
+    description: 'Evaluate a role URL, JD file, or pasted JD text. In ChatGPT, this automatically performs URL/JD extraction and returns a hybrid-ready handoff payload before any Gemini-only step.',
     inputSchema: objectSchema({
       url: { type: 'string', description: 'Job posting URL.' },
       jd_file: { type: 'string', description: 'Absolute or repo-relative path to a JD text file.' },
@@ -517,6 +517,7 @@ const TOOLS = [
       for (const [key, value] of Object.entries(args)) {
         if (value !== undefined) flags[normalizeToolArgName(key)] = value;
       }
+      flags.client = 'chatgpt-mcp';
       return { action: 'evaluate', flags };
     },
   },
@@ -651,7 +652,7 @@ const TOOLS = [
     name: 'prepare_application',
     title: 'Prepare Application',
     kind: 'write',
-    description: 'Run evaluation and package generation together for a role URL, JD file, or pasted JD text.',
+    description: 'Start the application-prep pipeline for a role URL, JD file, or pasted JD text. In ChatGPT, this performs extraction and returns a hybrid-ready handoff payload before any Gemini-only step.',
     inputSchema: objectSchema({
       url: { type: 'string', description: 'Job posting URL.' },
       jd_file: { type: 'string', description: 'Absolute or repo-relative path to a JD text file.' },
@@ -662,6 +663,7 @@ const TOOLS = [
       for (const [key, value] of Object.entries(args)) {
         if (value !== undefined) flags[normalizeToolArgName(key)] = value;
       }
+      flags.client = 'chatgpt-mcp';
       return { action: 'apply-prep', flags };
     },
   },

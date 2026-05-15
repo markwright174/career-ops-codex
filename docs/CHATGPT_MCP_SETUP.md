@@ -153,10 +153,17 @@ For OAuth-based write sessions, make sure the ChatGPT app requests
 If Gemini quota is unavailable or you prefer ChatGPT to do the actual reasoning,
 use this pattern:
 
-1. ChatGPT reads and evaluates the role in conversation
-2. ChatGPT calls `record_evaluation` with the structured result
-3. Career-Ops persists the report and tracker row through the normal merge and
+1. ChatGPT calls `evaluate_role` or `prepare_application`
+2. Career-Ops performs URL/JD extraction, captures final URL/title/body text,
+   writes the extracted JD file into `output/`, and returns a
+   `hybrid-preflight` payload before any Gemini-only step
+3. ChatGPT reads and evaluates the role in conversation
+4. ChatGPT calls `record_evaluation` with the structured result
+5. Career-Ops persists the report and tracker row through the normal merge and
    verify flow
+
+This keeps the useful extraction steps in the existing repo pipeline instead of
+rebuilding them in a second workflow.
 
 ### Hybrid package flow
 
@@ -194,7 +201,7 @@ Run show_applied and tell me which applications need attention.
 Only after that:
 
 ```text
-Run prepare_application for this URL and summarize what artifacts were created.
+Run evaluate_role for this URL and show me the hybrid-preflight result, especially final_url, result, body_text_chars, and jd_file.
 ```
 
 ## Safety Guidance

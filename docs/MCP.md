@@ -197,6 +197,41 @@ Gemini-backed repo evaluator, use the `record_evaluation` tool:
 
 This keeps the repo canonical without forcing every evaluation through Gemini.
 
+### Chat-aware evaluate/apply-prep bridge
+
+`evaluate_role` and `prepare_application` now use a Chat-aware bridge when they
+are called through the ChatGPT MCP frontend:
+
+1. Career-Ops still performs the normal preflight steps:
+   - URL fetch
+   - Playwright page load and SPA hydration wait
+   - final URL capture
+   - page title capture
+   - body-text extraction
+   - JD text file creation in `output/`
+2. Before any Gemini-only step, the pipeline returns a `hybrid-preflight`
+   result to ChatGPT instead of failing on Gemini auth.
+3. ChatGPT can then:
+   - reason over the extracted JD text in conversation
+   - persist the evaluation with `record_evaluation`
+   - continue into package generation through the hybrid package tools
+
+Typical `hybrid-preflight` payload fields include:
+
+- `requested_url`
+- `final_url`
+- `page_title`
+- `result`
+- `reason`
+- `apply_detected`
+- `body_text`
+- `body_text_chars`
+- `jd_file`
+- `next_step`
+
+This keeps the useful extraction/liveness steps in the existing pipeline while
+avoiding Gemini auth failures for the ChatGPT frontend path.
+
 ## Hybrid Package Mode
 
 `prepare_package` now supports a hybrid path too:

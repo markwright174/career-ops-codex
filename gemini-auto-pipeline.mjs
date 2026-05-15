@@ -26,6 +26,7 @@ function parseArgs(argv) {
     url: null,
     jdFile: null,
     text: null,
+    client: null,
     withPackage: false,
     dryRun: false,
   };
@@ -35,6 +36,7 @@ function parseArgs(argv) {
     if (arg === '--url') parsed.url = args[++i];
     else if (arg === '--jd-file') parsed.jdFile = args[++i];
     else if (arg === '--text') parsed.text = args[++i];
+    else if (arg === '--client') parsed.client = args[++i];
     else if (arg === '--with-package') parsed.withPackage = true;
     else if (arg === '--dry-run') parsed.dryRun = true;
   }
@@ -48,6 +50,62 @@ function parseArgs(argv) {
   return parsed;
 }
 
+const EXPIRED_PATTERNS = [
+  /job (is )?no longer available/i,
+  /job.*no longer open/i,
+  /position has been filled/i,
+  /this job has expired/i,
+  /job posting has expired/i,
+  /no longer accepting applications/i,
+  /this (position|role|job) (is )?no longer/i,
+  /this job (listing )?is closed/i,
+  /job (listing )?not found/i,
+  /the page you are looking for doesn.t exist/i,
+  /\d+\s+jobs?\s+found/i,
+  /search for jobs page is loaded/i,
+  /diese stelle (ist )?(nicht mehr|bereits) besetzt/i,
+  /offre (expirée|n'est plus disponible)/i,
+];
+
+const EXPIRED_URL_PATTERNS = [
+  /[?&]error=true/i,
+];
+
+const APPLY_PATTERNS = [
+  /\bapply\b/i,
+  /\bsolicitar\b/i,
+  /\bbewerben\b/i,
+  /\bpostuler\b/i,
+  /submit application/i,
+  /easy apply/i,
+  /start application/i,
+  /ich bewerbe mich/i,
+];
+
+const MIN_CONTENT_CHARS = 300;
+
+function inferLiveness(bodyText = '', finalUrl = '') {
+  if (EXPIRED_URL_PATTERNS.some((pattern) => pattern.test(finalUrl))) {
+    return { result: 'expired', reason: `redirect to ${finalUrl}` };
+  }
+  if (APPLY_PATTERNS.some((pattern) => pattern.test(bodyText))) {
+    return { result: 'active', reason: 'apply button detected' };
+  }
+  for (const pattern of EXPIRED_PATTERNS) {
+    if (pattern.test(bodyText)) {
+      return { result: 'expired', reason: `pattern matched: ${pattern.source}` };
+    }
+  }
+  if (bodyText.trim().length < MIN_CONTENT_CHARS) {
+    return { result: 'expired', reason: 'insufficient content — likely nav/footer only' };
+  }
+  return { result: 'uncertain', reason: 'content present but no apply button found' };
+}
+
+function shouldUseHybridBridge(client) {
+  return /\b(chatgpt|mcp|chat)\b/i.test(String(client || ''));
+}
+
 async function extractFromUrl(url) {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
@@ -56,10 +114,15 @@ async function extractFromUrl(url) {
     await page.waitForTimeout(2500);
     const title = await page.title();
     const bodyText = await page.evaluate(() => document.body?.innerText || '');
+    const finalUrl = page.url();
+    const liveness = inferLiveness(bodyText, finalUrl);
     return {
       title,
-      url: page.url(),
+      url: finalUrl,
       text: bodyText.trim(),
+      bodyTextChars: bodyText.trim().length,
+      applyDetected: liveness.result === 'active',
+      liveness,
     };
   } finally {
     await browser.close();
@@ -107,17 +170,41 @@ function parseReportMeta(reportPath) {
   };
 }
 
+function buildHybridBridgePayload(args, extracted, tmpFile, sourceKind, sourceUrl) {
+  return {
+    ok: true,
+    mode: 'hybrid-preflight',
+    source_kind: sourceKind,
+    requested_url: args.url || null,
+    final_url: extracted?.url || sourceUrl || null,
+    page_title: extracted?.title || null,
+    result: extracted?.liveness?.result || (sourceKind === 'url' ? 'uncertain' : 'provided'),
+    reason: extracted?.liveness?.reason || (sourceKind === 'url' ? 'extracted without liveness detail' : 'provided text or file'),
+    apply_detected: extracted?.applyDetected ?? null,
+    body_text: extracted?.text || readFileSync(tmpFile, 'utf-8'),
+    body_text_chars: extracted?.bodyTextChars ?? readFileSync(tmpFile, 'utf-8').trim().length,
+    jd_file: tmpFile,
+    next_step: args.withPackage
+      ? 'Use the extracted posting to evaluate in conversation, persist with record_evaluation, then build the package through the hybrid package flow.'
+      : 'Use the extracted posting to evaluate in conversation, then persist the result with record_evaluation.',
+  };
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   mkdirSync(PATHS.output, { recursive: true });
 
   let jdText = '';
   let sourceUrl = args.url || null;
+  let extracted = null;
+  let sourceKind = 'text';
   if (args.url) {
-    const extracted = await extractFromUrl(args.url);
+    sourceKind = 'url';
+    extracted = await extractFromUrl(args.url);
     jdText = extracted.text;
     sourceUrl = extracted.url;
   } else if (args.jdFile) {
+    sourceKind = 'jd-file';
     jdText = readFileSync(resolve(args.jdFile), 'utf-8');
   } else {
     jdText = String(args.text || '');
@@ -130,6 +217,11 @@ async function main() {
 
   const tmpFile = join(PATHS.output, `jd-${slugify(sourceUrl || 'inline')}-${todayIso()}.txt`);
   writeFileSync(tmpFile, jdText, 'utf-8');
+
+  if (shouldUseHybridBridge(args.client)) {
+    console.log(JSON.stringify(buildHybridBridgePayload(args, extracted, tmpFile, sourceKind, sourceUrl), null, 2));
+    return;
+  }
 
   const evalRun = runNodeScript('gemini-eval.mjs', ['--file', tmpFile], { timeout_ms: 600000 });
   if (!evalRun.ok) {

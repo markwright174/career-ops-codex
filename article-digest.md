@@ -32,3 +32,12 @@ Evidence boundaries:
 - Do not claim legal AI, cloud-security AI, or dedicated AI-product training unless confirmed later.
 - Do not overstate xAPI / Tin Can as deep implementation architecture or advanced LRS engineering ownership.
 - Best framing: AI-supported instructional design, curriculum development, assessment generation, content review, and learning-data analysis.
+
+## K-12, ELA, Dual-Language, and Adult Teaching Background
+
+- Oxford TEFL certified teacher.
+- Taught for three years in Prague, including adult learners and PreK-3 learners, with ELA instruction while living overseas.
+- Taught K-3 dual-language learners for three years in Houston ISD.
+- Directed a K-12 after-school tutoring program.
+- Safe framing: strong educator credibility for K-12 curriculum, ELA-adjacent curriculum work, professional learning, teacher support, dual-language learner awareness, and adult-learning facilitation.
+- Boundary: do not overstate this as dedicated K-8 ELA product ownership, formal ELD/TESOL curriculum ownership, or district-wide curriculum leadership unless confirmed later.
