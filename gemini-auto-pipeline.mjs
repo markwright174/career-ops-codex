@@ -106,6 +106,192 @@ function shouldUseHybridBridge(client) {
   return /\b(chatgpt|mcp|chat)\b/i.test(String(client || ''));
 }
 
+function isLikelyWorkdayUrl(url = '') {
+  return /myworkday(site|jobs)\.com/i.test(String(url || ''));
+}
+
+function parseWorkdayPathParts(url = '') {
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    const recruitingIdx = parts.findIndex((p) => p.toLowerCase() === 'recruiting');
+    if (recruitingIdx < 0 || parts.length <= recruitingIdx + 2) return null;
+    const tenant = parts[recruitingIdx + 1];
+    const site = parts[recruitingIdx + 2];
+    return { origin: parsed.origin, tenant, site };
+  } catch {
+    return null;
+  }
+}
+
+function parseWorkdayReqToken(url = '') {
+  const reqMatch = String(url || '').match(/_(REQ[-_A-Z0-9]+)/i);
+  if (reqMatch) return reqMatch[1].replace(/_/g, '-');
+  const tail = String(url || '').split('/').filter(Boolean).pop() || '';
+  const tokenMatch = tail.match(/[A-Za-z0-9-]{8,}$/);
+  return tokenMatch ? tokenMatch[0] : '';
+}
+
+function stringifyWorkdayPosting(posting) {
+  if (!posting || typeof posting !== 'object') return '';
+  const lines = [];
+  const push = (label, value) => {
+    const clean = String(value || '').trim();
+    if (clean) lines.push(`${label}: ${clean}`);
+  };
+
+  push('Title', posting.title);
+  push('External Path', posting.externalPath);
+  push('Location', posting.locationsText);
+  push('Posted', posting.postedOn);
+  push('Remote Type', posting.remoteType);
+  if (posting.bulletFields && Array.isArray(posting.bulletFields)) {
+    for (const field of posting.bulletFields) {
+      const key = String(field?.label || '').trim();
+      const value = String(field?.value || '').trim();
+      if (key && value) lines.push(`${key}: ${value}`);
+    }
+  }
+  const desc = String(posting.jobDescription || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (desc) {
+    lines.push('');
+    lines.push('Description:');
+    lines.push(desc);
+  }
+  return lines.join('\n').trim();
+}
+
+function stringifyWorkdayDetail(detail) {
+  if (!detail || typeof detail !== 'object') return '';
+  const info = detail.jobPostingInfo || {};
+  const lines = [];
+  const push = (label, value) => {
+    const clean = String(value || '').trim();
+    if (clean) lines.push(`${label}: ${clean}`);
+  };
+  push('Title', info.title);
+  push('External Path', info.externalPath);
+  push('Location', info.location);
+  push('Posted', info.startDate);
+  push('Time Type', info.timeType);
+  push('Worker Sub-Type', info.workerSubType);
+  push('Primary Location', info.primaryLocation);
+
+  const desc = String(info.jobDescription || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (desc) {
+    lines.push('');
+    lines.push('Description:');
+    lines.push(desc);
+  }
+  return lines.join('\n').trim();
+}
+
+function inferWorkArrangementFromText(text = '') {
+  const t = String(text || '').toLowerCase();
+  if (!t) return 'unknown';
+  if (/\bremote\b|work\s+schedule[\s\S]{0,80}\bremote\b/.test(t)) return 'remote';
+  if (/\bhybrid\b/.test(t)) return 'hybrid';
+  if (/\bon-?site\b|in\s+office|on\s+campus/.test(t)) return 'onsite';
+  return 'unknown';
+}
+
+async function extractWorkdayFallback(page, sourceUrl) {
+  if (!isLikelyWorkdayUrl(sourceUrl)) return null;
+  const pathParts = parseWorkdayPathParts(sourceUrl);
+  if (!pathParts) return null;
+
+  const reqToken = parseWorkdayReqToken(sourceUrl);
+  const result = await page.evaluate(async ({ origin, tenant, site, reqToken }) => {
+    const endpoint = `${origin}/wday/cxs/${tenant}/${site}/jobs`;
+    const baseBody = {
+      appliedFacets: {},
+      limit: 20,
+      offset: 0,
+      searchText: reqToken || '',
+    };
+
+    async function fetchJobs(searchText) {
+      const body = { ...baseBody, searchText: searchText || '' };
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) return null;
+      return res.json();
+    }
+
+    const tokenData = await fetchJobs(reqToken);
+    const broadData = tokenData?.jobPostings?.length ? tokenData : await fetchJobs('');
+    const jobPostings = broadData?.jobPostings || [];
+    if (!jobPostings.length) return null;
+
+    const loweredToken = String(reqToken || '').toLowerCase();
+    let chosen = jobPostings.find((item) =>
+      loweredToken && String(item?.externalPath || '').toLowerCase().includes(loweredToken)
+    );
+    if (!chosen && loweredToken) {
+      chosen = jobPostings.find((item) =>
+        String(item?.title || '').toLowerCase().includes(loweredToken)
+      );
+    }
+    if (!chosen) chosen = jobPostings[0];
+
+    const response = {
+      endpoint,
+      reqToken,
+      totalPostings: jobPostings.length,
+      posting: chosen,
+    };
+    const externalPath = String(chosen?.externalPath || '').trim();
+    if (externalPath) {
+      const detailEndpoint = `${origin}/wday/cxs/${tenant}/${site}${externalPath}`;
+      const detailRes = await fetch(detailEndpoint, {
+        method: 'GET',
+        headers: { 'accept': 'application/json' },
+        credentials: 'include',
+      });
+      if (detailRes.ok) {
+        response.detailEndpoint = detailEndpoint;
+        response.detail = await detailRes.json();
+      }
+    }
+    if (response.detail?.jobPostingInfo?.jobRequisitionLocation?.descriptor) {
+      response.jobRequisitionLocationDescriptor = String(
+        response.detail.jobPostingInfo.jobRequisitionLocation.descriptor
+      );
+    }
+    return response;
+  }, { ...pathParts, reqToken });
+
+  if (!result?.posting) return null;
+  const detailText = stringifyWorkdayDetail(result.detail);
+  const summaryText = stringifyWorkdayPosting(result.posting);
+  const text = detailText && detailText.length > summaryText.length ? detailText : summaryText;
+  return {
+    source: 'workday-cxs',
+    endpoint: result.endpoint,
+    detailEndpoint: result.detailEndpoint || null,
+    reqToken: result.reqToken,
+    totalPostings: result.totalPostings,
+    text,
+    jobRequisitionLocationDescriptor: result.jobRequisitionLocationDescriptor || null,
+    workArrangement: inferWorkArrangementFromText(
+      `${result.jobRequisitionLocationDescriptor || ''}\n${text}`
+    ),
+  };
+}
+
 async function extractFromUrl(url) {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
@@ -115,14 +301,36 @@ async function extractFromUrl(url) {
     const title = await page.title();
     const bodyText = await page.evaluate(() => document.body?.innerText || '');
     const finalUrl = page.url();
-    const liveness = inferLiveness(bodyText, finalUrl);
+    let liveness = inferLiveness(bodyText, finalUrl);
+    let finalText = bodyText.trim();
+    let fallback = null;
+    const shouldTryWorkdayFallback = (
+      isLikelyWorkdayUrl(finalUrl) &&
+      (
+        finalText.length < 800 ||
+        liveness.result === 'expired' ||
+        /jobs?\s+found|search for jobs page is loaded|not found/i.test(finalText)
+      )
+    );
+    if (shouldTryWorkdayFallback) {
+      fallback = await extractWorkdayFallback(page, finalUrl);
+      if (fallback?.text && fallback.text.length > finalText.length) {
+        finalText = fallback.text;
+        liveness = {
+          result: 'active',
+          reason: 'workday cxs fallback extracted posting',
+        };
+      }
+    }
+
     return {
       title,
       url: finalUrl,
-      text: bodyText.trim(),
-      bodyTextChars: bodyText.trim().length,
+      text: finalText,
+      bodyTextChars: finalText.length,
       applyDetected: liveness.result === 'active',
       liveness,
+      fallback,
     };
   } finally {
     await browser.close();
@@ -184,6 +392,9 @@ function buildHybridBridgePayload(args, extracted, tmpFile, sourceKind, sourceUr
     body_text: extracted?.text || readFileSync(tmpFile, 'utf-8'),
     body_text_chars: extracted?.bodyTextChars ?? readFileSync(tmpFile, 'utf-8').trim().length,
     jd_file: tmpFile,
+    extraction_fallback: extracted?.fallback || null,
+    work_arrangement: extracted?.fallback?.workArrangement || inferWorkArrangementFromText(extracted?.text || ''),
+    location_signal: extracted?.fallback?.jobRequisitionLocationDescriptor || null,
     next_step: args.withPackage
       ? 'Use the extracted posting to evaluate in conversation, persist with record_evaluation, then build the package through the hybrid package flow.'
       : 'Use the extracted posting to evaluate in conversation, then persist the result with record_evaluation.',

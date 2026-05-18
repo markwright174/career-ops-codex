@@ -53,6 +53,71 @@ const APPLY_PATTERNS = [
 // Below this length the page is probably just nav/footer (closed ATS page)
 const MIN_CONTENT_CHARS = 300;
 
+function isLikelyWorkdayUrl(url = '') {
+  return /myworkday(site|jobs)\.com/i.test(String(url || ''));
+}
+
+function parseWorkdayPathParts(url = '') {
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    const recruitingIdx = parts.findIndex((p) => p.toLowerCase() === 'recruiting');
+    if (recruitingIdx < 0 || parts.length <= recruitingIdx + 2) return null;
+    return {
+      origin: parsed.origin,
+      tenant: parts[recruitingIdx + 1],
+      site: parts[recruitingIdx + 2],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseWorkdayReqToken(url = '') {
+  const reqMatch = String(url || '').match(/_(REQ[-_A-Z0-9]+)/i);
+  return reqMatch ? reqMatch[1].replace(/_/g, '-') : '';
+}
+
+async function findWorkdayPosting(page, sourceUrl) {
+  if (!isLikelyWorkdayUrl(sourceUrl)) return null;
+  const pathParts = parseWorkdayPathParts(sourceUrl);
+  if (!pathParts) return null;
+  const reqToken = parseWorkdayReqToken(sourceUrl);
+
+  return page.evaluate(async ({ origin, tenant, site, reqToken }) => {
+    const endpoint = `${origin}/wday/cxs/${tenant}/${site}/jobs`;
+    const payload = {
+      appliedFacets: {},
+      limit: 20,
+      offset: 0,
+      searchText: reqToken || '',
+    };
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'accept': 'application/json', 'content-type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const postings = data?.jobPostings || [];
+    if (!postings.length) return null;
+    const lowered = String(reqToken || '').toLowerCase();
+    const matched = postings.find((item) =>
+      lowered && String(item?.externalPath || '').toLowerCase().includes(lowered)
+    ) || postings[0];
+    return {
+      endpoint,
+      reqToken,
+      totalPostings: postings.length,
+      title: matched?.title || null,
+      externalPath: matched?.externalPath || null,
+      postedOn: matched?.postedOn || null,
+      locationsText: matched?.locationsText || null,
+    };
+  }, { ...pathParts, reqToken });
+}
+
 async function checkUrl(page, url) {
   try {
     const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -89,6 +154,13 @@ async function checkUrl(page, url) {
     }
 
     if (bodyText.trim().length < MIN_CONTENT_CHARS) {
+      const workdayPosting = await findWorkdayPosting(page, finalUrl);
+      if (workdayPosting?.externalPath) {
+        return {
+          result: 'active',
+          reason: `workday cxs posting found${workdayPosting.title ? `: ${workdayPosting.title}` : ''}`,
+        };
+      }
       return { result: 'expired', reason: 'insufficient content — likely nav/footer only' };
     }
 
