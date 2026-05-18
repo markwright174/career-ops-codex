@@ -470,13 +470,24 @@ async function fetchWorkableJobs(apiMeta) {
 // ── Title filter ────────────────────────────────────────────────────
 
 function buildTitleFilter(titleFilter) {
-  const positive = (titleFilter?.positive || []).map(k => k.toLowerCase());
-  const negative = (titleFilter?.negative || []).map(k => k.toLowerCase());
+  const normalizeTitleMatch = (text) => String(text || '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const containsPhrase = (haystack, needle) => {
+    if (!needle) return false;
+    return ` ${haystack} `.includes(` ${needle} `);
+  };
+
+  const positive = (titleFilter?.positive || []).map(normalizeTitleMatch);
+  const negative = (titleFilter?.negative || []).map(normalizeTitleMatch);
 
   return (title) => {
-    const lower = title.toLowerCase();
-    const hasPositive = positive.length === 0 || positive.some(k => lower.includes(k));
-    const hasNegative = negative.some(k => lower.includes(k));
+    const normalizedTitle = normalizeTitleMatch(title);
+    const hasPositive = positive.length === 0 || positive.some(k => containsPhrase(normalizedTitle, k));
+    const hasNegative = negative.some(k => containsPhrase(normalizedTitle, k));
     return hasPositive && !hasNegative;
   };
 }
