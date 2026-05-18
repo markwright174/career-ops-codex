@@ -74,6 +74,9 @@ const SECONDARY_TITLE_SIGNALS = [
   'customer education design',
   'technical learning design and development',
   'learning and organizational development',
+  'learning and development lead',
+  'learning development lead',
+  'l d lead',
   'leadership development',
   'organizational development',
   'talent development',
@@ -90,6 +93,8 @@ const ADJACENT_TITLE_SIGNALS = [
   'faculty development',
   'professional learning',
   'technical training',
+  'technology enablement',
+  'technical enablement',
   'training manager',
 ];
 const DOWNLEVEL_SIGNALS = [
