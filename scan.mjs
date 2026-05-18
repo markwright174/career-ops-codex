@@ -581,16 +581,23 @@ function buildRoleQualityFilter() {
 }
 
 function buildRoleRanker() {
+  const normalizeRankText = (text) => String(text || '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
   const rankedSignals = [
     { score: 5, terms: ['instructional design manager', 'senior instructional designer', 'instructional designer', 'learning experience designer'] },
-    { score: 4, terms: ['learning designer', 'curriculum designer', 'curriculum developer', 'faculty development', 'learning strategist', 'learning consultant', 'leadership development', 'organizational development', 'talent development'] },
-    { score: 3, terms: ['customer education manager', 'customer education', 'product education', 'technical training', 'technical learning'] },
+    { score: 4, terms: ['learning designer', 'curriculum designer', 'curriculum developer', 'faculty development', 'learning strategist', 'learning consultant', 'leadership development', 'organizational development', 'talent development', 'learning and development lead', 'learning development lead', 'l d lead', 'technology enablement', 'technical enablement'] },
+    { score: 3, terms: ['customer education manager', 'customer education', 'product education', 'technical training', 'technical learning', 'learning and development'] },
     { score: 2, terms: ['enablement content', 'education program strategist', 'customer learning'] },
     { score: 1, terms: ['customer enablement', 'enablement', 'customer success'] },
   ];
 
   return (title = '') => {
-    const lower = String(title || '').toLowerCase();
+    const lower = normalizeRankText(title);
     let bestScore = 0;
 
     for (const group of rankedSignals) {
