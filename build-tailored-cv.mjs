@@ -308,6 +308,18 @@ function renderProjects(projects) {
   ].filter(Boolean).join('\n')).join('\n\n');
 }
 
+function normalizeProjects(projects) {
+  if (!Array.isArray(projects)) return [];
+  return projects
+    .map((project) => ({
+      title: String(project?.title || '').trim(),
+      badge: String(project?.badge || '').trim(),
+      description: String(project?.description || '').trim(),
+      tech: String(project?.tech || '').trim(),
+    }))
+    .filter((project) => project.title && project.description);
+}
+
 function renderEducation(items) {
   return items.map((item) => [
     '    <div class="edu-item">',
@@ -388,6 +400,19 @@ function buildHtml(template, data) {
     '<span class="separator">|</span>'
   );
 
+  // Omit Projects section entirely when there are no valid project entries.
+  if (!String(data.PROJECTS || '').trim()) {
+    html = html.replace(
+      /\s*<!-- PROJECTS -->[\s\S]*?<!-- EDUCATION -->\s*/m,
+      '\n\n  <!-- EDUCATION -->\n'
+    );
+    // Collapse any accidental extra blank lines after section removal.
+    html = html.replace(
+      /\n{3,}/g,
+      '\n'
+    );
+  }
+
   return html;
 }
 
@@ -430,6 +455,7 @@ function main() {
   const candidate = profile.candidate || {};
   const experience = mergeExperience(cv.experience, brief.experience);
   const competencies = filterSupportedCompetencies(brief.competencies || [], sourceText);
+  const projects = normalizeProjects(brief.projects || []);
   const linkedinUrl = (candidate.linkedin || '').startsWith('http') ? candidate.linkedin : `https://${candidate.linkedin || ''}`;
   const portfolioUrl = candidate.portfolio_url || brief.portfolio_url || '';
   const html = buildHtml(template, {
@@ -450,7 +476,7 @@ function main() {
     SECTION_EXPERIENCE: escapeHtml(labels.experience),
     EXPERIENCE: renderExperience(experience),
     SECTION_PROJECTS: escapeHtml(labels.projects),
-    PROJECTS: renderProjects(brief.projects || []),
+    PROJECTS: renderProjects(projects),
     SECTION_EDUCATION: escapeHtml(labels.education),
     EDUCATION: renderEducation(cv.education),
     SECTION_CERTIFICATIONS: escapeHtml(labels.certifications),
@@ -468,6 +494,7 @@ function main() {
     pdf: pdfPath,
     format,
     competencies_retained: competencies,
+    projects_rendered: projects.length,
     keyword_coverage: coverage,
   };
 

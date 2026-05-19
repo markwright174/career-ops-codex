@@ -31,6 +31,7 @@ const PROFILE_PATH = 'config/profile.yml';
 mkdirSync('data', { recursive: true });
 
 const CONCURRENCY = 10;
+const QUERY_CONCURRENCY = 2;
 const FETCH_TIMEOUT_MS = 10_000;
 
 // ── API detection ───────────────────────────────────────────────────
@@ -152,6 +153,24 @@ function detectApiFromText(text) {
     return {
       type: 'teamtailor',
       url: `https://${teamtailorMatch[1]}.teamtailor.com/jobs.rss`,
+    };
+  }
+
+  // Paylocity
+  const paylocityAllMatch = text.match(/recruiting\.paylocity\.com\/recruiting\/jobs\/all\/([a-f0-9-]{8,})(?:\/[^\/\s"'|?#]+)?/i);
+  if (paylocityAllMatch) {
+    return {
+      type: 'paylocity',
+      url: `https://recruiting.paylocity.com/Recruiting/Jobs/All/${paylocityAllMatch[1]}`,
+      boardId: paylocityAllMatch[1],
+    };
+  }
+  const paylocityDetailsMatch = text.match(/recruiting\.paylocity\.com\/recruiting\/jobs\/details\/(\d+)/i);
+  if (paylocityDetailsMatch) {
+    return {
+      type: 'paylocity',
+      url: `https://recruiting.paylocity.com/Recruiting/Jobs/Details/${paylocityDetailsMatch[1]}`,
+      jobId: paylocityDetailsMatch[1],
     };
   }
 
@@ -327,6 +346,40 @@ function parseSmartRecruiters(json, companyName) {
   })).filter(job => job.title && job.url);
 }
 
+function parsePaylocity(html, companyName) {
+  const pageDataMatch = html.match(/window\.pageData\s*=\s*(\{[\s\S]*?\});/i);
+  if (pageDataMatch) {
+    try {
+      const payload = JSON.parse(pageDataMatch[1]);
+      const jobs = Array.isArray(payload?.Jobs) ? payload.Jobs : [];
+      return jobs
+        .map((j) => ({
+          title: j.JobTitle || '',
+          url: j.JobId ? `https://recruiting.paylocity.com/Recruiting/Jobs/Details/${j.JobId}` : '',
+          company: companyName,
+          location: j.LocationName || '',
+        }))
+        .filter((job) => job.title && job.url);
+    } catch {
+      // fall through to anchor-based parsing
+    }
+  }
+
+  const jobs = [];
+  const seen = new Set();
+  const matches = html.matchAll(/<a[^>]+href=["']([^"']*\/Recruiting\/Jobs\/Details\/\d+[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi);
+  for (const match of matches) {
+    const href = decodeXmlEntities(match[1] || '').trim();
+    const title = decodeXmlEntities(match[2] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!href || !title) continue;
+    const url = href.startsWith('http') ? href : `https://recruiting.paylocity.com${href.startsWith('/') ? '' : '/'}${href}`;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    jobs.push({ title, url, company: companyName, location: '' });
+  }
+  return jobs;
+}
+
 const PARSERS = {
   greenhouse: parseGreenhouse,
   ashby: parseAshby,
@@ -335,6 +388,7 @@ const PARSERS = {
   icims: parseIcims,
   lever: parseLever,
   smartrecruiters: parseSmartRecruiters,
+  paylocity: parsePaylocity,
   teamtailor: parseTeamtailor,
   workable: parseWorkable,
   workday: parseWorkday,
@@ -367,21 +421,36 @@ async function fetchText(url) {
 }
 
 async function fetchSearchResults(query) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; career-ops-scan/1.0)',
-      },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.text();
-  } finally {
-    clearTimeout(timer);
+  const endpoints = [
+    `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
+    `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
+    `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`,
+  ];
+
+  let lastErr = null;
+  for (let i = 0; i < endpoints.length; i++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(endpoints[i], {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      });
+      if (res.ok) return await res.text();
+      lastErr = new Error(`HTTP ${res.status}`);
+      if (res.status !== 403 && res.status !== 429) break;
+    } catch (err) {
+      lastErr = err;
+    } finally {
+      clearTimeout(timer);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 350 + i * 250));
   }
+
+  throw lastErr || new Error('Search request failed');
 }
 
 async function fetchWorkdayJobs(apiMeta) {
@@ -882,6 +951,8 @@ async function main() {
     try {
       const payload = type === 'teamtailor'
         ? await fetchText(url)
+        : type === 'paylocity'
+          ? await fetchText(url)
         : type === 'workday'
           ? await fetchWorkdayJobs(company._api)
           : type === 'bamboohr'
@@ -975,7 +1046,10 @@ async function main() {
     }
   });
 
-  await parallelFetch([...tasks, ...queryTasks], CONCURRENCY);
+  // Run API pulls with higher concurrency, then broad queries with lower concurrency
+  // to reduce search-engine 403 throttling.
+  await parallelFetch(tasks, CONCURRENCY);
+  await parallelFetch(queryTasks, QUERY_CONCURRENCY);
 
   newOffers.sort((a, b) => {
     if (b.roleRank !== a.roleRank) return b.roleRank - a.roleRank;

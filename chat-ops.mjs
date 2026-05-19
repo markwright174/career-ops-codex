@@ -239,6 +239,12 @@ function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function findUnknownKeys(obj, allowedKeys = []) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return [];
+  const allowed = new Set(allowedKeys);
+  return Object.keys(obj).filter((key) => !allowed.has(key));
+}
+
 function parseBaseCvExperienceKeys() {
   const path = PATHS.cv;
   if (!existsSync(path)) return new Set();
@@ -337,6 +343,27 @@ function parseBaseCvChronology() {
 function validateHybridBrief(brief) {
   const errors = [];
   const baseExperienceKeys = parseBaseCvExperienceKeys();
+  const unknownBriefKeys = findUnknownKeys(brief, [
+    'summary_text',
+    'competencies',
+    'experience',
+    'projects',
+    'skills',
+    'keywords',
+    'language',
+    'section_labels',
+    'name',
+    'phone',
+    'email',
+    'location',
+    'portfolio_url',
+    'format',
+    'html_path',
+    'pdf_path',
+  ]);
+  if (unknownBriefKeys.length > 0) {
+    errors.push(`brief has unsupported keys: ${unknownBriefKeys.join(', ')}. Use only the documented brief schema keys.`);
+  }
 
   if (!isNonEmptyString(brief.summary_text)) {
     errors.push('brief.summary_text is required and must be a non-empty string.');
@@ -350,6 +377,10 @@ function validateHybridBrief(brief) {
     errors.push('brief.experience must be a non-empty array.');
   } else {
     brief.experience.forEach((entry, index) => {
+      const unknownEntryKeys = findUnknownKeys(entry, ['company', 'role', 'period', 'bullets']);
+      if (unknownEntryKeys.length > 0) {
+        errors.push(`brief.experience[${index}] has unsupported keys: ${unknownEntryKeys.join(', ')}.`);
+      }
       if (!isNonEmptyString(entry.company)) {
         errors.push(`brief.experience[${index}].company is required.`);
       }
@@ -375,6 +406,10 @@ function validateHybridBrief(brief) {
     errors.push('brief.skills must be a non-empty array.');
   } else {
     brief.skills.forEach((entry, index) => {
+      const unknownSkillKeys = findUnknownKeys(entry, ['category', 'items']);
+      if (unknownSkillKeys.length > 0) {
+        errors.push(`brief.skills[${index}] has unsupported keys: ${unknownSkillKeys.join(', ')}.`);
+      }
       if (!isNonEmptyString(entry.category)) {
         errors.push(`brief.skills[${index}].category is required.`);
       }
@@ -390,6 +425,16 @@ function validateHybridBrief(brief) {
 
   if (brief.projects !== undefined && !Array.isArray(brief.projects)) {
     errors.push('brief.projects must be an array when provided.');
+  } else if (Array.isArray(brief.projects)) {
+    brief.projects.forEach((project, index) => {
+      const unknownProjectKeys = findUnknownKeys(project, ['title', 'badge', 'description', 'tech']);
+      if (unknownProjectKeys.length > 0) {
+        errors.push(`brief.projects[${index}] has unsupported keys: ${unknownProjectKeys.join(', ')}.`);
+      }
+      if (!isNonEmptyString(project.title) || !isNonEmptyString(project.description)) {
+        errors.push(`brief.projects[${index}] requires non-empty title and description.`);
+      }
+    });
   }
 
   return errors;
@@ -397,6 +442,20 @@ function validateHybridBrief(brief) {
 
 function validateHybridLetter(letter) {
   const errors = [];
+  const unknownLetterKeys = findUnknownKeys(letter, [
+    'date',
+    'recipient_lines',
+    'greeting',
+    'paragraphs',
+    'closing',
+    'language',
+    'format',
+    'html_path',
+    'pdf_path',
+  ]);
+  if (unknownLetterKeys.length > 0) {
+    errors.push(`letter has unsupported keys: ${unknownLetterKeys.join(', ')}. Use only the documented letter schema keys.`);
+  }
 
   if (!isNonEmptyString(letter.date)) {
     errors.push('letter.date is required and must be a non-empty string.');
@@ -1878,6 +1937,7 @@ function buildHelp() {
       { action: 'evaluate', description: 'Run the Gemini-backed evaluation pipeline for a JD URL or file. Supports --url, --jd-file, and optional --with-package.' },
       { action: 'record-evaluation', description: 'Persist a Chat-authored evaluation report and tracker row without using Gemini. Supports --company, --role, --score, --report-body-file or --report-body, plus metadata fields.' },
       { action: 'package', description: 'Generate a tailored CV + cover letter package from a JD file and optional report context.' },
+      { action: 'package-schema', description: 'Return the strict expected JSON schema shape for hybrid package brief/letter payloads.' },
       { action: 'quality-package-row', description: 'High-level package workflow for an existing tracker row. Without JSON inputs, returns row context + quality rules. With --brief-json and --letter-json, runs quality checks and builds the package.' },
       { action: 'apply-prep', description: 'Evaluate a role and generate the tailored package in one step.' },
       { action: 'update-application', description: 'Update an existing tracker row by number. Supports --num N, optional --status STATE, --pdf ✅|❌, --notes TEXT, and --replace-notes.' },
@@ -1913,6 +1973,33 @@ function buildHelp() {
       'node chat-ops.mjs record-evaluation --company "Acme" --role "Senior Instructional Designer" --score "4.2/5" --report-body-file output/report-body.md --dry-run',
       'node chat-ops.mjs quality-package-row --num 77',
     ],
+  };
+}
+
+function buildPackageSchema() {
+  return {
+    action: 'package-schema',
+    mode: 'hybrid',
+    required_top_level_keys: ['brief', 'letter'],
+    brief: {
+      required: ['summary_text', 'competencies', 'experience', 'skills'],
+      optional: ['projects', 'keywords', 'language', 'section_labels', 'name', 'phone', 'email', 'location', 'portfolio_url', 'format', 'html_path', 'pdf_path'],
+      experience_item: {
+        required: ['company', 'role', 'bullets'],
+        optional: ['period'],
+      },
+      skills_item: {
+        required: ['category', 'items'],
+      },
+      project_item: {
+        required: ['title', 'description'],
+        optional: ['badge', 'tech'],
+      },
+    },
+    letter: {
+      required: ['date', 'recipient_lines', 'greeting', 'paragraphs', 'closing'],
+      optional: ['language', 'format', 'html_path', 'pdf_path'],
+    },
   };
 }
 
@@ -2366,6 +2453,8 @@ async function main() {
         stderr: run.stderr.trim(),
       };
     }
+  } else if (action === 'package-schema') {
+    result = buildPackageSchema();
   } else if (action === 'record-evaluation') {
     result = recordEvaluation(parsed.flags);
   } else if (action === 'quality-package-row') {
