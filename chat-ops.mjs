@@ -871,6 +871,33 @@ function normalizeCompany(text) {
   return String(text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+function resolveProfileMode(raw) {
+  const mode = String(raw || '').trim().toLowerCase();
+  if (mode === 'tstc' || mode === 'unitek') return mode;
+  return '';
+}
+
+function inferProfileMode({ company = '', role = '', contextText = '' } = {}) {
+  const text = normalizeText([company, role, contextText].filter(Boolean).join(' '));
+  let tstc = 0;
+  let unitek = 0;
+
+  if (/\b(manager|director|head)\b/.test(text)) tstc += 2;
+  if (/\b(agile|operations|operational|portfolio|programs?|pbe|proficiency)\b/.test(text)) tstc += 2;
+  if (/\b(community college|technical college|workforce)\b/.test(text)) tstc += 2;
+
+  if (/\b(lead|leadership)\b/.test(text)) unitek += 1;
+  if (/\b(bsn|adn|lvn|nursing|healthcare|higher education|curriculum committee)\b/.test(text)) unitek += 3;
+  if (/\b(syllabus|learning outcomes|assessment|lms)\b/.test(text)) unitek += 2;
+
+  return unitek > tstc ? 'unitek' : 'tstc';
+}
+
+function cvPathForMode(mode) {
+  if (mode === 'unitek') return join(ROOT, 'cv-unitek.md');
+  return join(ROOT, 'cv-tstc.md');
+}
+
 function roleTokens(text) {
   return normalizeText(text)
     .split(' ')
@@ -982,6 +1009,12 @@ function buildPackageFromStructuredInput(flags = {}) {
   const report = flags.report ? String(flags.report) : null;
   const url = flags.url ? String(flags.url) : null;
   const dryRun = String(flags['dry-run'] || flags.dry_run || '').toLowerCase() === 'true';
+  const reportPath = report ? resolve(ROOT, report) : '';
+  const reportText = reportPath && existsSync(reportPath) ? readFileSync(reportPath, 'utf-8') : '';
+  const profileMode = resolveProfileMode(flags['profile-mode'] || flags.profile_mode)
+    || resolveProfileMode(brief.profile_mode)
+    || inferProfileMode({ company, role, contextText: reportText });
+  const cvSource = cvPathForMode(profileMode);
 
   if (!company) throw new Error('company is required for hybrid package build.');
   if (!role) throw new Error('role is required for hybrid package build.');
@@ -991,6 +1024,8 @@ function buildPackageFromStructuredInput(flags = {}) {
 
   brief.format = format;
   letter.format = format;
+  brief.profile_mode = profileMode;
+  brief.cv_path = cvSource;
 
   const briefPath = join(OUTPUT_DIR, `cv-${candidateSlug}-${companySlug}-${date}.brief.json`);
   const letterPath = join(OUTPUT_DIR, `cover-letter-${candidateSlug}-${companySlug}-${date}.json`);
@@ -1005,6 +1040,8 @@ function buildPackageFromStructuredInput(flags = {}) {
     mode: 'hybrid',
     company,
     role,
+    profile_mode: profileMode,
+    cv_source: cvSource,
     format,
     date,
     report,
@@ -1059,6 +1096,7 @@ function buildPackageFromStructuredInput(flags = {}) {
 
   const cvRun = runNodeScript('build-tailored-cv.mjs', [
     briefPath,
+    '--cv-path', cvSource,
     '--html', cvHtmlPath,
     '--pdf', cvPdfPath,
     `--format=${format}`,
@@ -1427,6 +1465,11 @@ function buildQualityPackageForRow(flags = {}) {
   const reportUrl = reportContent ? extractReportUrl(reportContent) : null;
   const rules = buildQualityPackageRules(row, chronology, reportContent || '');
   const reportRiskSignals = extractReportRiskSignals(reportContent || '');
+  const recommendedProfileMode = inferProfileMode({
+    company: row.company,
+    role: row.role,
+    contextText: reportContent || row.notes || '',
+  });
   const context = {
     num,
     company: row.company,
@@ -1439,6 +1482,8 @@ function buildQualityPackageForRow(flags = {}) {
     report_url: reportUrl,
     cover_letter_focus_themes: inferCoverLetterThemes(reportContent || '', row),
     report_risk_signals: reportRiskSignals,
+    recommended_profile_mode: recommendedProfileMode,
+    recommended_cv_source: cvPathForMode(recommendedProfileMode),
     focus_roles: chronology.slice(0, 4).map((entry) => ({ company: entry.company, role: entry.role })),
   };
   const briefJson = flags['brief-json'] || flags.brief_json;
@@ -1501,6 +1546,7 @@ function buildQualityPackageForRow(flags = {}) {
     role: row.role,
     report: reportRelPath || flags.report,
     url: reportUrl || flags.url,
+    'profile-mode': String(flags['profile-mode'] || flags.profile_mode || recommendedProfileMode),
     'brief-json': briefJson,
     'letter-json': letterJson,
   };

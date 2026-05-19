@@ -106,6 +106,17 @@ function shouldUseHybridBridge(client) {
   return /\b(chatgpt|mcp|chat)\b/i.test(String(client || ''));
 }
 
+function inferProfileMode(text = '', url = '') {
+  const blob = String(`${text}\n${url}`).toLowerCase();
+  let tstc = 0;
+  let unitek = 0;
+  if (/\b(manager|director|operations|portfolio|agile)\b/.test(blob)) tstc += 2;
+  if (/\b(community college|technical college|workforce)\b/.test(blob)) tstc += 2;
+  if (/\b(healthcare|nursing|bsn|adn|lvn|higher education|curriculum committee)\b/.test(blob)) unitek += 3;
+  if (/\b(syllabus|learning outcomes|assessments?|lms)\b/.test(blob)) unitek += 2;
+  return unitek > tstc ? 'unitek' : 'tstc';
+}
+
 function isLikelyWorkdayUrl(url = '') {
   return /myworkday(site|jobs)\.com/i.test(String(url || ''));
 }
@@ -468,6 +479,8 @@ function parseReportMeta(reportPath) {
 }
 
 function buildHybridBridgePayload(args, extracted, tmpFile, sourceKind, sourceUrl) {
+  const bodyText = extracted?.text || readFileSync(tmpFile, 'utf-8');
+  const recommendedProfileMode = inferProfileMode(bodyText, sourceUrl || args.url || '');
   return {
     ok: true,
     mode: 'hybrid-preflight',
@@ -478,12 +491,14 @@ function buildHybridBridgePayload(args, extracted, tmpFile, sourceKind, sourceUr
     result: extracted?.liveness?.result || (sourceKind === 'url' ? 'uncertain' : 'provided'),
     reason: extracted?.liveness?.reason || (sourceKind === 'url' ? 'extracted without liveness detail' : 'provided text or file'),
     apply_detected: extracted?.applyDetected ?? null,
-    body_text: extracted?.text || readFileSync(tmpFile, 'utf-8'),
-    body_text_chars: extracted?.bodyTextChars ?? readFileSync(tmpFile, 'utf-8').trim().length,
+    body_text: bodyText,
+    body_text_chars: extracted?.bodyTextChars ?? bodyText.trim().length,
     jd_file: tmpFile,
     extraction_fallback: extracted?.fallback || null,
     work_arrangement: extracted?.fallback?.workArrangement || inferWorkArrangementFromText(extracted?.text || ''),
     location_signal: extracted?.fallback?.jobRequisitionLocationDescriptor || null,
+    recommended_profile_mode: recommendedProfileMode,
+    recommended_cv_source: recommendedProfileMode === 'unitek' ? 'cv-unitek.md' : 'cv-tstc.md',
     next_step: args.withPackage
       ? 'Use the extracted posting to evaluate in conversation, persist with record_evaluation, then build the package through the hybrid package flow.'
       : 'Use the extracted posting to evaluate in conversation, then persist the result with record_evaluation.',

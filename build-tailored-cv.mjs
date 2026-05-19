@@ -22,7 +22,7 @@ import { spawnSync } from 'child_process';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = join(ROOT, 'templates', 'cv-template.html');
-const CV_PATH = join(ROOT, 'cv.md');
+const DEFAULT_CV_PATH = join(ROOT, 'cv.md');
 const ARTICLE_DIGEST_PATH = join(ROOT, 'article-digest.md');
 const PROFILE_PATH = join(ROOT, 'config', 'profile.yml');
 const PDF_SCRIPT_PATH = join(ROOT, 'generate-pdf.mjs');
@@ -79,6 +79,7 @@ function parseArgs(argv) {
   const args = argv.slice(2);
   const parsed = {
     briefPath: null,
+    cvPath: null,
     htmlPath: null,
     pdfPath: null,
     format: null,
@@ -92,6 +93,10 @@ function parseArgs(argv) {
     }
     if (arg === '--html') {
       parsed.htmlPath = args[++i];
+      continue;
+    }
+    if (arg === '--cv-path') {
+      parsed.cvPath = args[++i];
       continue;
     }
     if (arg === '--pdf') {
@@ -110,6 +115,12 @@ function parseArgs(argv) {
   }
 
   return parsed;
+}
+
+function resolveCvPath(rawPath) {
+  if (!rawPath) return DEFAULT_CV_PATH;
+  const resolved = resolve(rawPath);
+  return existsSync(resolved) ? resolved : resolve(ROOT, rawPath);
 }
 
 function parseYamlScalar(value) {
@@ -431,8 +442,13 @@ function main() {
   const args = parseArgs(process.argv);
   const briefPath = resolve(args.briefPath);
   const brief = JSON.parse(readFileSync(briefPath, 'utf-8'));
+  const cvPath = resolveCvPath(args.cvPath || brief.cv_path || brief.cvPath);
+  if (!existsSync(cvPath)) {
+    console.error(`CV source not found: ${cvPath}`);
+    process.exit(1);
+  }
   const template = readFileSync(TEMPLATE_PATH, 'utf-8');
-  const cvContent = readFileSync(CV_PATH, 'utf-8');
+  const cvContent = readFileSync(cvPath, 'utf-8');
   const articleDigestContent = existsSync(ARTICLE_DIGEST_PATH) ? readFileSync(ARTICLE_DIGEST_PATH, 'utf-8') : '';
   const sourceText = normalizeForMatch(`${cvContent}\n${articleDigestContent}`);
   const cv = parseCv(cvContent);
@@ -490,6 +506,7 @@ function main() {
   const coverage = computeKeywordCoverage(html, brief.keywords || []);
   const summary = {
     brief: briefPath,
+    cv_source: cvPath,
     html: htmlPath,
     pdf: pdfPath,
     format,
