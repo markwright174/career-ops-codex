@@ -110,6 +110,10 @@ function isLikelyWorkdayUrl(url = '') {
   return /myworkday(site|jobs)\.com/i.test(String(url || ''));
 }
 
+function isLikelyDayforceUrl(url = '') {
+  return /jobs\.dayforcehcm\.com/i.test(String(url || ''));
+}
+
 function parseWorkdayPathParts(url = '') {
   try {
     const parsed = new URL(url);
@@ -199,6 +203,70 @@ function inferWorkArrangementFromText(text = '') {
   if (/\bhybrid\b/.test(t)) return 'hybrid';
   if (/\bon-?site\b|in\s+office|on\s+campus/.test(t)) return 'onsite';
   return 'unknown';
+}
+
+function stringifyDayforceData(data) {
+  if (!data || typeof data !== 'object') return '';
+  const lines = [];
+  const push = (label, value) => {
+    const clean = String(value || '').trim();
+    if (clean) lines.push(`${label}: ${clean}`);
+  };
+  push('Title', data.jobTitle);
+  push('Req', data.jobReqId);
+  push('Posted', data.postingStartTimestampUTC);
+  push('Expires', data.postingExpiryTimestampUTC);
+  if (Array.isArray(data.postingLocations) && data.postingLocations.length > 0) {
+    const loc = data.postingLocations
+      .map((l) => String(l?.locationName || l?.name || '').trim())
+      .filter(Boolean)
+      .join(' | ');
+    push('Location', loc);
+  }
+  if (data.hasVirtualLocation) push('Remote', 'true');
+  const html = String(data.jobPostingContent?.jobDescription || '');
+  const desc = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (desc) {
+    lines.push('');
+    lines.push('Description:');
+    lines.push(desc);
+  }
+  return lines.join('\n').trim();
+}
+
+async function extractDayforceFallback(page, sourceUrl) {
+  if (!isLikelyDayforceUrl(sourceUrl)) return null;
+  const data = await page.evaluate(async () => {
+    const direct = globalThis.__NEXT_DATA__?.props?.pageProps?.jobData || null;
+    if (direct) return { source: 'next-data', jobData: direct };
+
+    const route = globalThis.__NEXT_DATA__;
+    const buildId = route?.buildId;
+    const query = route?.query || {};
+    const locale = query?.locale || 'en-US';
+    const clientNamespace = query?.clientNamespace;
+    const careerSiteXRefCode = query?.careerSiteXRefCode;
+    const id = query?.id;
+    if (buildId && clientNamespace && careerSiteXRefCode && id) {
+      const jsonUrl = `${location.origin}/_next/data/${buildId}/${locale}/${clientNamespace}/${careerSiteXRefCode}/jobs/${id}.json?external=true&clientNamespace=${clientNamespace}&careerSiteXRefCode=${careerSiteXRefCode}&id=${id}`;
+      const res = await fetch(jsonUrl, { credentials: 'include' });
+      if (res.ok) {
+        const payload = await res.json();
+        const fromJson = payload?.pageProps?.jobData || payload?.props?.pageProps?.jobData || null;
+        if (fromJson) return { source: 'next-data-json', jsonUrl, jobData: fromJson };
+      }
+    }
+    return null;
+  });
+
+  if (!data?.jobData) return null;
+  const text = stringifyDayforceData(data.jobData);
+  return {
+    source: data.source || 'dayforce',
+    jsonUrl: data.jsonUrl || null,
+    text,
+    workArrangement: data.jobData?.hasVirtualLocation ? 'remote' : inferWorkArrangementFromText(text),
+  };
 }
 
 async function extractWorkdayFallback(page, sourceUrl) {
@@ -304,6 +372,26 @@ async function extractFromUrl(url) {
     let liveness = inferLiveness(bodyText, finalUrl);
     let finalText = bodyText.trim();
     let fallback = null;
+    const shouldTryDayforceFallback = (
+      isLikelyDayforceUrl(finalUrl) &&
+      (
+        finalText.length < 1200 ||
+        /cookie preferences|reject|accept all|search jobs/i.test(finalText) ||
+        liveness.result !== 'active'
+      )
+    );
+    if (shouldTryDayforceFallback) {
+      const dayforceFallback = await extractDayforceFallback(page, finalUrl);
+      if (dayforceFallback?.text && dayforceFallback.text.length > finalText.length) {
+        fallback = dayforceFallback;
+        finalText = dayforceFallback.text;
+        liveness = {
+          result: 'active',
+          reason: 'dayforce next-data fallback extracted posting',
+        };
+      }
+    }
+
     const shouldTryWorkdayFallback = (
       isLikelyWorkdayUrl(finalUrl) &&
       (
@@ -313,9 +401,10 @@ async function extractFromUrl(url) {
       )
     );
     if (shouldTryWorkdayFallback) {
-      fallback = await extractWorkdayFallback(page, finalUrl);
-      if (fallback?.text && fallback.text.length > finalText.length) {
-        finalText = fallback.text;
+      const workdayFallback = await extractWorkdayFallback(page, finalUrl);
+      if (workdayFallback?.text && workdayFallback.text.length > finalText.length) {
+        fallback = workdayFallback;
+        finalText = workdayFallback.text;
         liveness = {
           result: 'active',
           reason: 'workday cxs fallback extracted posting',

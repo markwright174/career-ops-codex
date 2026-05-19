@@ -57,6 +57,10 @@ function isLikelyWorkdayUrl(url = '') {
   return /myworkday(site|jobs)\.com/i.test(String(url || ''));
 }
 
+function isLikelyDayforceUrl(url = '') {
+  return /jobs\.dayforcehcm\.com/i.test(String(url || ''));
+}
+
 function parseWorkdayPathParts(url = '') {
   try {
     const parsed = new URL(url);
@@ -118,6 +122,41 @@ async function findWorkdayPosting(page, sourceUrl) {
   }, { ...pathParts, reqToken });
 }
 
+async function findDayforcePosting(page, sourceUrl) {
+  if (!isLikelyDayforceUrl(sourceUrl)) return null;
+  return page.evaluate(async () => {
+    const fromNextData = globalThis.__NEXT_DATA__?.props?.pageProps?.jobData || null;
+    if (fromNextData?.jobPostingId || fromNextData?.jobTitle) {
+      return {
+        source: 'next-data',
+        title: fromNextData.jobTitle || null,
+        req: fromNextData.jobReqId || null,
+      };
+    }
+
+    const nd = globalThis.__NEXT_DATA__ || null;
+    const buildId = nd?.buildId;
+    const q = nd?.query || {};
+    const locale = q?.locale || 'en-US';
+    const clientNamespace = q?.clientNamespace;
+    const careerSiteXRefCode = q?.careerSiteXRefCode;
+    const id = q?.id;
+    if (!buildId || !clientNamespace || !careerSiteXRefCode || !id) return null;
+
+    const jsonUrl = `${location.origin}/_next/data/${buildId}/${locale}/${clientNamespace}/${careerSiteXRefCode}/jobs/${id}.json?external=true&clientNamespace=${clientNamespace}&careerSiteXRefCode=${careerSiteXRefCode}&id=${id}`;
+    const res = await fetch(jsonUrl, { credentials: 'include' });
+    if (!res.ok) return null;
+    const payload = await res.json();
+    const jobData = payload?.pageProps?.jobData || payload?.props?.pageProps?.jobData || null;
+    if (!jobData?.jobPostingId && !jobData?.jobTitle) return null;
+    return {
+      source: 'next-data-json',
+      title: jobData.jobTitle || null,
+      req: jobData.jobReqId || null,
+    };
+  });
+}
+
 async function checkUrl(page, url) {
   try {
     const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -154,6 +193,13 @@ async function checkUrl(page, url) {
     }
 
     if (bodyText.trim().length < MIN_CONTENT_CHARS) {
+      const dayforcePosting = await findDayforcePosting(page, finalUrl);
+      if (dayforcePosting?.title) {
+        return {
+          result: 'active',
+          reason: `dayforce posting found${dayforcePosting.title ? `: ${dayforcePosting.title}` : ''}`,
+        };
+      }
       const workdayPosting = await findWorkdayPosting(page, finalUrl);
       if (workdayPosting?.externalPath) {
         return {
@@ -162,6 +208,16 @@ async function checkUrl(page, url) {
         };
       }
       return { result: 'expired', reason: 'insufficient content — likely nav/footer only' };
+    }
+
+    if (isLikelyDayforceUrl(finalUrl)) {
+      const dayforcePosting = await findDayforcePosting(page, finalUrl);
+      if (dayforcePosting?.title) {
+        return {
+          result: 'active',
+          reason: `dayforce posting found${dayforcePosting.title ? `: ${dayforcePosting.title}` : ''}`,
+        };
+      }
     }
 
     return { result: 'uncertain', reason: 'content present but no apply button found' };
