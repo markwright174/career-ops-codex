@@ -159,7 +159,12 @@ async function findDayforcePosting(page, sourceUrl) {
 
 async function checkUrl(page, url) {
   try {
-    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    let response;
+    try {
+      response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    } catch {
+      response = await page.goto(url, { waitUntil: 'load', timeout: 45000 });
+    }
 
     const status = response?.status() ?? 0;
     if (status === 404 || status === 410) {

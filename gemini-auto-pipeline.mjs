@@ -375,7 +375,13 @@ async function extractFromUrl(url) {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    } catch {
+      // Some enterprise ATS pages (SAP/SuccessFactors, Dayforce variants)
+      // can be slow or delayed by anti-bot scripts; retry with a longer budget.
+      await page.goto(url, { waitUntil: 'load', timeout: 60000 });
+    }
     await page.waitForTimeout(2500);
     const title = await page.title();
     const bodyText = await page.evaluate(() => document.body?.innerText || '');
