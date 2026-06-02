@@ -1,6 +1,6 @@
 # Project Profile
 
-_Generated from `config/profile.yml`, `modes/_profile.md`, and `article-digest.md` on 2026-05-13. Regenerate with `node generate-project-profile.mjs` after profile changes._
+_Generated from `config/profile.yml`, `modes/_profile.md`, and `article-digest.md` on 2026-05-26. Regenerate with `node generate-project-profile.mjs` after profile changes._
 
 ## Identity
 
@@ -82,6 +82,9 @@ _Generated from `config/profile.yml`, `modes/_profile.md`, and `article-digest.m
 ## Verified Strengths
 - In the current role, Mark manages curriculum design, development, and maintenance across the full development cycle for degreed nursing education programs, including LVN, ADN, and BSN pathways.
 - This work provides direct familiarity with healthcare education expectations, regulated instructional environments, and the operational realities of program maintenance across complex learning tracks.
+- At Unitek, Mark's primary focus is undergraduate medical education-aligned nursing pathways (LVN, ADN, BSN), including design for clinical and lab learning experiences.
+- He works directly with Deans and program directors on curriculum design and implementation decisions.
+- He supports accreditation-related curriculum and program documentation work across California, New Mexico, Arizona, Utah, and Idaho, with ongoing accreditation work in New Hampshire.
 - Intermediate experience with Adobe Captivate.
 - Working knowledge of xAPI and Tin Can API through recent professional development.
 
