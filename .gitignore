@@ -35,6 +35,7 @@ mcp-oauth-local.ps1
 # OS
 .DS_Store
 desktop.ini
+**/desktop.ini
 Thumbs.db
 *.lnk
 *.mov
