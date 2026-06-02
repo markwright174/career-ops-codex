@@ -156,6 +156,16 @@ function detectApiFromText(text) {
     };
   }
 
+  // SAP SuccessFactors Careers (jobs.hr.cloud.sap)
+  const sapMatch = text.match(/([a-z0-9-]+)\.jobs\.hr\.cloud\.sap/i);
+  if (sapMatch) {
+    return {
+      type: 'sap',
+      url: `https://${sapMatch[1]}.jobs.hr.cloud.sap/search`,
+      host: `${sapMatch[1]}.jobs.hr.cloud.sap`,
+    };
+  }
+
   // Paylocity
   const paylocityAllMatch = text.match(/recruiting\.paylocity\.com\/recruiting\/jobs\/all\/([a-f0-9-]{8,})(?:\/[^\/\s"'|?#]+)?/i);
   if (paylocityAllMatch) {
@@ -380,6 +390,36 @@ function parsePaylocity(html, companyName) {
   return jobs;
 }
 
+function parseSapJobs(html, companyName, apiMeta = {}) {
+  const seen = new Set();
+  const jobs = [];
+  const host = apiMeta.host || 'jobs.hr.cloud.sap';
+  const base = `https://${host}`;
+  const matches = html.matchAll(/<a[^>]+href="([^"]*\/job\/[^"]+\/\d+[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi);
+
+  for (const match of matches) {
+    const href = decodeXmlEntities(match[1] || '').trim();
+    const title = decodeXmlEntities(match[2] || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!href || !title) continue;
+    const url = href.startsWith('http')
+      ? href
+      : `${base}${href.startsWith('/') ? '' : '/'}${href}`;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    jobs.push({
+      title,
+      url,
+      company: companyName,
+      location: '',
+    });
+  }
+
+  return jobs;
+}
+
 const PARSERS = {
   greenhouse: parseGreenhouse,
   ashby: parseAshby,
@@ -389,6 +429,7 @@ const PARSERS = {
   lever: parseLever,
   smartrecruiters: parseSmartRecruiters,
   paylocity: parsePaylocity,
+  sap: parseSapJobs,
   teamtailor: parseTeamtailor,
   workable: parseWorkable,
   workday: parseWorkday,
@@ -951,6 +992,8 @@ async function main() {
     try {
       const payload = type === 'teamtailor'
         ? await fetchText(url)
+        : type === 'sap'
+          ? await fetchText(url)
         : type === 'paylocity'
           ? await fetchText(url)
         : type === 'workday'

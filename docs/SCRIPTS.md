@@ -6,20 +6,14 @@ All scripts live in the project root as `.mjs` modules and are exposed via `npm 
 
 | Command | Script | Purpose |
 |---------|--------|---------|
-| `npm run chat` | `chat-ops.mjs` | Frontend command surface for ChatGPT/Codex |
-| `npm run bridge` | `bridge-server.mjs` | Local JSON bridge for MCP/tunnel frontends |
-| `npm run mcp` | `mcp-server.mjs` | Narrow MCP server for ChatGPT developer mode / remote MCP clients |
-| `npm run mcp:smoke` | `mcp-smoke-test.mjs` | Local MCP smoke test for initialize, tools/list, and tools/call |
-| `powershell -File .\start-mcp-readonly.ps1` | `start-mcp-readonly.ps1` | Start the localhost-bound read-only MCP server for Apache/tunnel fronting |
 | `npm run doctor` | `doctor.mjs` | Validate setup prerequisites |
 | `npm run verify` | `verify-pipeline.mjs` | Check pipeline data integrity |
 | `npm run normalize` | `normalize-statuses.mjs` | Fix non-canonical statuses |
 | `npm run dedup` | `dedup-tracker.mjs` | Remove duplicate tracker entries |
 | `npm run merge` | `merge-tracker.mjs` | Merge batch TSVs into applications.md |
 | `npm run pdf` | `generate-pdf.mjs` | Convert HTML to ATS-optimized PDF |
-| `npm run gemini:package` | `gemini-package.mjs` | Generate tailored CV and cover letter package |
-| `npm run gemini:pipeline` | `gemini-auto-pipeline.mjs` | Evaluate a role and update report/tracker, optionally with package |
 | `npm run sync-check` | `cv-sync-check.mjs` | Validate CV/profile consistency |
+| `npm run patterns` | `analyze-patterns.mjs` | Analyze tracker outcomes and report patterns |
 | `npm run update:check` | `update-system.mjs check` | Check for upstream updates |
 | `npm run update` | `update-system.mjs apply` | Apply upstream update |
 | `npm run rollback` | `update-system.mjs rollback` | Rollback last update |
@@ -37,180 +31,6 @@ npm run doctor
 ```
 
 **Exit codes:** `0` all checks passed, `1` one or more checks failed (fix messages printed).
-
----
-
-## chat
-
-Thin frontend command surface for ChatGPT/Codex. Wraps the existing repo flow
-with explicit actions and structured JSON output so a conversational frontend
-can operate the repo without improvising tracker, scan, or resume behavior.
-
-```bash
-npm run chat -- help
-npm run chat -- inbox
-npm run chat -- shortlist
-npm run chat -- tracker --status Applied --limit 8
-npm run chat -- scan-safe --mark-expired --shortlist
-npm run chat -- project-profile
-npm run chat -- repo-summary
-npm run chat -- attention-report
-npm run chat -- quick-apply
-```
-
-Primary actions:
-- `help`
-- `scan`
-- `scan-safe`
-- `inbox`
-- `shortlist`
-- `tracker`
-- `applied`
-- `evaluated`
-- `verify`
-- `sync-check`
-- `project-profile`
-- `repo-summary`
-- `attention-report`
-- `patterns`
-- `quick-apply`
-- `reports`
-- `liveness`
-- `evaluate`
-- `package`
-- `apply-prep`
-
-See [docs/CHATGPT_FRONTEND.md](/G:/My%20Drive/career-ops/docs/CHATGPT_FRONTEND.md) for the recommended frontend workflow.
-See [docs/BRIDGE.md](/G:/My%20Drive/career-ops/docs/BRIDGE.md) for the local bridge architecture.
-See [docs/MCP.md](/G:/My%20Drive/career-ops/docs/MCP.md) for the MCP server setup.
-See [docs/CHATGPT_MCP_SETUP.md](/G:/My%20Drive/career-ops/docs/CHATGPT_MCP_SETUP.md) for the end-to-end ChatGPT/tunnel setup path.
-
-**Exit codes:** `0` success, `1` invalid action or underlying command failure.
-
----
-
-## bridge
-
-Local JSON bridge around `chat-ops.mjs`, intended to be exposed later through a
-tunnel or MCP wrapper instead of granting a frontend arbitrary shell access.
-
-```bash
-set CAREER_OPS_BRIDGE_TOKEN=replace-with-a-long-random-secret
-npm run bridge
-```
-
-Optional write enablement for evaluation/package/apply-prep:
-
-```bash
-set CAREER_OPS_BRIDGE_ALLOW_WRITE=1
-```
-
-Health endpoint:
-
-```text
-GET /health
-```
-
-Action endpoint:
-
-```text
-POST /action
-```
-
-See [docs/BRIDGE.md](/G:/My%20Drive/career-ops/docs/BRIDGE.md) for payloads and
-allowed actions.
-
-Security defaults:
-- binds to `127.0.0.1` unless `CAREER_OPS_BRIDGE_HOST` is overridden
-- refuses to start without `CAREER_OPS_BRIDGE_TOKEN`
-- keeps write actions disabled unless `CAREER_OPS_BRIDGE_ALLOW_WRITE=1`
-- rate-limits requests and suppresses raw child-process output in remote errors
-
-**Exit codes:** long-running server process.
-
----
-
-## mcp
-
-Narrow MCP server that exposes named Career-Ops tools to ChatGPT developer mode
-or another remote MCP client. The MCP layer maps onto the existing `chat-ops`
-actions rather than creating a second workflow.
-
-```bash
-npm run mcp
-```
-
-Optional bearer token for manual/private clients:
-
-```bash
-set CAREER_OPS_MCP_TOKEN=replace-with-a-long-random-secret
-npm run mcp
-```
-
-Optional write enablement:
-
-```bash
-set CAREER_OPS_MCP_ALLOW_WRITE=1
-```
-
-Security defaults:
-- binds to `127.0.0.1` unless `CAREER_OPS_MCP_HOST` is overridden
-- write tools are disabled unless `CAREER_OPS_MCP_ALLOW_WRITE=1`
-- bearer token auth is optional
-- rate-limits requests in memory
-
-See [docs/MCP.md](/G:/My%20Drive/career-ops/docs/MCP.md) for setup notes and
-ChatGPT compatibility caveats.
-
-**Exit codes:** long-running server process.
-
----
-
-## mcp:smoke
-
-Tiny local MCP test client for validating the Career-Ops MCP endpoint before
-you involve ChatGPT or a tunnel.
-
-```bash
-npm run mcp:smoke
-```
-
-Optional flags:
-
-```bash
-npm run mcp:smoke -- --token your-secret
-npm run mcp:smoke -- --tool show_tracker --args "{\"status\":\"Applied\",\"limit\":5}"
-```
-
-By default it tests:
-
-- `GET /health`
-- `initialize`
-- `tools/list`
-- `tools/call`
-
-**Exit codes:** `0` success, `1` request or parsing failure.
-
----
-
-## start-mcp-readonly
-
-Starts the localhost-bound, read-only MCP server in a hidden PowerShell
-process. This is the preferred local backend when Apache/XAMPP fronts the MCP
-endpoint.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\start-mcp-readonly.ps1
-```
-
-It:
-
-- binds MCP to `127.0.0.1`
-- keeps write tools disabled
-- leaves token auth unset because Apache or a local tunnel is expected to sit
-  in front of it
-
-See [docs/APACHE_MCP_SETUP.md](/G:/My%20Drive/career-ops/docs/APACHE_MCP_SETUP.md).
 
 ---
 
@@ -298,6 +118,21 @@ npm run sync-check
 
 ---
 
+## patterns
+
+Analyzes application outcomes, scores, archetypes, blockers, remote policy, and company size from `data/applications.md` and linked reports. New reports should include `## Machine Summary` YAML; `analyze-patterns.mjs` uses it first and falls back to legacy markdown parsing for older reports.
+
+```bash
+npm run patterns
+npm run patterns -- --summary
+npm run patterns -- --min-threshold 3
+node analyze-patterns.mjs --self-test
+```
+
+**Exit codes:** `0` analysis succeeded, `1` insufficient data or parser self-test failure.
+
+---
+
 ## update:check
 
 Checks whether a newer version of career-ops is available upstream. Outputs JSON to stdout:
@@ -361,7 +196,20 @@ Each URL gets a verdict: `active`, `expired`, or `uncertain` with a reason.
 
 ## scan
 
-Zero-token portal scanner. Hits ATS APIs (Greenhouse, Ashby, Lever) and career pages directly — no LLM tokens consumed. Reads `portals.yml` for target companies and search queries, outputs matching listings to stdout and optionally appends to `data/pipeline.md`.
+Zero-token portal scanner. Runs configured local parsers for SSR/static career pages and hits ATS APIs (Greenhouse, Ashby, Lever) directly — no LLM tokens consumed. Reads `portals.yml` for target companies, outputs matching listings to stdout, and optionally appends to `data/pipeline.md`.
+
+For custom SSR pages, configure a tracked company with `scan_method: local_parser` and a `parser` block. The parser can be written in JavaScript, Python, or any language available as a local executable. Company-specific parsers usually already know their source URL and only need to print JSON jobs to stdout:
+
+```yaml
+parser:
+  command: node
+  script: scripts/parsers/example-company-jobs.js
+  format: jobs-json-v1
+```
+
+Use `args` only for reusable parsers that intentionally accept runtime parameters such as `{careers_url}` or `{company}`.
+
+If a parser writes full extraction artifacts for debugging or audit, store them under `data/parser-output/{company}/`. `scan.mjs` reads stdout and does not require those JSON files after parsing. Keep generated JSON artifacts out of git; `.gitkeep` placeholders are the only exception for preserving directory structure.
 
 ```bash
 npm run scan

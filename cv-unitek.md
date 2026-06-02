@@ -4,7 +4,7 @@ Houston, TX | +1-832-605-5223 | dntpanic.tpc@gmail.com | https://linkedin.com/in
 
 ## Professional Summary
 
-Senior learning and instructional design leader specializing in curriculum development, instructional design operations, accessibility, and LMS-supported program delivery across higher education, workforce learning, healthcare education, and K-12 contexts. Currently leads instructional design work across a 4-6 program portfolio, supports roughly 20 courses per program, and manages an Agile team of 4-6 instructional designers. Brings direct experience coordinating faculty and stakeholder partners, maintaining complex course portfolios, supporting degreed nursing education pathways across LVN, ADN, and BSN programs, and translating complex content into practical learning experiences.
+Senior learning and instructional design leader specializing in curriculum development, instructional design operations, accessibility, and LMS-supported program delivery across higher education, workforce learning, healthcare education, and K-12 contexts. Currently leads instructional design work across a 4-6 program portfolio, supports roughly 20 courses per program, and manages an Agile team of 4-6 instructional designers. Brings direct experience coordinating faculty and stakeholder partners, maintaining complex course portfolios, supporting degreed nursing education pathways across LVN, ADN, and BSN programs, contributing to accreditation work across multiple states, and translating complex content into practical learning experiences.
 
 ## Professional Experience
 
@@ -15,6 +15,9 @@ Senior learning and instructional design leader specializing in curriculum devel
 - Collaborated with subject matter experts to design and deliver effective instructional approaches and improve course quality and effectiveness.
 - Participated in curriculum committee meetings, implemented approved curriculum changes, and facilitated integration of new educational tools and features.
 - Project managed the full course development lifecycle from inception to launch, maintaining schedule, budget, and delivery quality.
+- Supported accreditation-related curriculum and program documentation work across California, New Mexico, Arizona, Utah, and Idaho, with ongoing accreditation work in New Hampshire.
+- Focused primarily on undergraduate medical education-aligned nursing pathways (LVN, ADN, BSN), including instructional design for clinical and lab learning experiences.
+- Worked directly with Deans and program directors to align curriculum design, outcomes, and implementation decisions.
 
 ### Instructional Designer II
 **Lone Star College** | 2021 – 2021

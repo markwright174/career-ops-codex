@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $port = if ($env:CAREER_OPS_MCP_PORT) { $env:CAREER_OPS_MCP_PORT } else { '8790' }
 $healthUrl = "http://127.0.0.1:$port/health"
-$metadataUrl = "http://127.0.0.1:$port/.well-known/oauth-protected-resource/career-ops-mcp"
+$metadataUrl = "http://127.0.0.1:$port/.well-known/oauth-protected-resource/mcp"
 $localConfigPath = Join-Path $repoRoot 'mcp-oauth-local.ps1'
 
 if (Test-Path $localConfigPath) {
@@ -88,7 +88,7 @@ $env:CAREER_OPS_MCP_HOST = '127.0.0.1'
 $env:CAREER_OPS_MCP_ALLOW_WRITE = '0'
 $env:CAREER_OPS_MCP_TOKEN = ''
 $env:CAREER_OPS_MCP_PUBLIC_BASE_URL = Get-RequiredEnvValue -Name 'CAREER_OPS_MCP_PUBLIC_BASE_URL' -Example 'https://mcp.example.com'
-$env:CAREER_OPS_MCP_PUBLIC_PATH = '/career-ops-mcp'
+$env:CAREER_OPS_MCP_PUBLIC_PATH = '/mcp'
 $env:CAREER_OPS_MCP_OAUTH_ISSUER = Get-RequiredEnvValue -Name 'CAREER_OPS_MCP_OAUTH_ISSUER' -Example 'https://auth.example.com/'
 $env:CAREER_OPS_MCP_OAUTH_AUDIENCE = Get-RequiredEnvValue -Name 'CAREER_OPS_MCP_OAUTH_AUDIENCE' -Example 'https://mcp.example.com/'
 $env:CAREER_OPS_MCP_READ_SCOPE = '__none__'
