@@ -291,6 +291,21 @@ function decodeXmlEntities(text) {
     .replace(/&#39;/g, "'");
 }
 
+function normalizeScanCompany(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function normalizeScanRole(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function parseTeamtailor(xml, companyName) {
   const items = [];
   const matches = xml.match(/<item>([\s\S]*?)<\/item>/gi) || [];
@@ -700,8 +715,8 @@ function buildRoleRanker() {
 
   const rankedSignals = [
     { score: 5, terms: ['instructional design manager', 'senior instructional designer', 'instructional designer', 'learning experience designer'] },
-    { score: 4, terms: ['learning designer', 'curriculum designer', 'curriculum developer', 'faculty development', 'learning strategist', 'learning consultant', 'leadership development', 'organizational development', 'talent development', 'learning and development lead', 'learning development lead', 'l d lead', 'technology enablement', 'technical enablement'] },
-    { score: 3, terms: ['customer education manager', 'customer education', 'product education', 'technical training', 'technical learning', 'learning and development'] },
+    { score: 4, terms: ['learning designer', 'curriculum designer', 'curriculum developer', 'curriculum design', 'faculty development', 'learning strategist', 'learning consultant', 'education consultant', 'senior consultant', 'leadership development', 'organizational development', 'talent development', 'learning and development manager', 'learning and development lead', 'learning development lead', 'learning capability lead', 'instructional development manager', 'l d lead', 'technology enablement', 'technical enablement', 'professional learning', 'professional learning product manager', 'learning product manager', 'curriculum product manager', 'education product manager', 'learning architect', 'learning operations', 'learning capability'] },
+    { score: 3, terms: ['customer education manager', 'customer education', 'product education', 'technical training', 'technical learning', 'learning and development', 'manager of client training', 'manager, instructional design'] },
     { score: 2, terms: ['enablement content', 'education program strategist', 'customer learning'] },
     { score: 1, terms: ['customer enablement', 'enablement', 'customer success'] },
   ];
@@ -853,10 +868,14 @@ function loadSeenCompanyRoles() {
   const seen = new Set();
   if (existsSync(APPLICATIONS_PATH)) {
     const text = readFileSync(APPLICATIONS_PATH, 'utf-8');
-    // Parse markdown table rows: | # | Date | Company | Role | ...
-    for (const match of text.matchAll(/\|[^|]+\|[^|]+\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|/g)) {
-      const company = match[1].trim().toLowerCase();
-      const role = match[2].trim().toLowerCase();
+    // Parse markdown table rows line-by-line so report links / notes don't confuse the matcher.
+    for (const line of text.split(/\r?\n/)) {
+      if (!line.startsWith('|')) continue;
+      if (line.includes('| # |') || line.includes('---')) continue;
+      const parts = line.split('|').map((value) => value.trim());
+      if (parts.length < 5) continue;
+      const company = normalizeScanCompany(parts[3]);
+      const role = normalizeScanRole(parts[4]);
       if (company && role && company !== 'company') {
         seen.add(`${company}::${role}`);
       }
@@ -1032,7 +1051,7 @@ async function main() {
           totalDupes++;
           continue;
         }
-        const key = `${job.company.toLowerCase()}::${job.title.toLowerCase()}`;
+        const key = `${normalizeScanCompany(job.company)}::${normalizeScanRole(job.title)}`;
         if (seenCompanyRoles.has(key)) {
           totalDupes++;
           continue;
@@ -1075,7 +1094,7 @@ async function main() {
           totalDupes++;
           continue;
         }
-        const key = `${job.company.toLowerCase()}::${job.title.toLowerCase()}`;
+        const key = `${normalizeScanCompany(job.company)}::${normalizeScanRole(job.title)}`;
         if (seenCompanyRoles.has(key)) {
           totalDupes++;
           continue;

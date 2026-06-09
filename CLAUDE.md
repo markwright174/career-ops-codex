@@ -14,6 +14,7 @@ There are two layers. Read `DATA_CONTRACT.md` for the full list.
 
 **User Layer (NEVER auto-updated, personalization goes HERE):**
 - `cv.md`, `config/profile.yml`, `modes/_profile.md`, `article-digest.md`, `portals.yml`
+- `local/personal-overlay.yml` for private multi-track profile switching
 - `data/*`, `reports/*`, `output/*`, `interview-prep/*`
 
 **System Layer (auto-updatable, DON'T put user data here):**
@@ -185,6 +186,7 @@ After the basics are set up, proactively ask for more context. The more you know
 Store any insights the user shares in `config/profile.yml` (under narrative), `modes/_profile.md`, or in `article-digest.md` if they share proof points. Do not put user-specific archetypes or framing into `modes/_shared.md`.
 
 **After every evaluation, learn.** If the user says "this score is too high, I wouldn't apply here" or "you missed that I have experience in X", update your understanding in `modes/_profile.md`, `config/profile.yml`, or `article-digest.md`. The system should get smarter with every interaction without putting personalization into system-layer files.
+If the user has more than one private career context, prefer updating `local/personal-overlay.yml` and running `npm run personal:sync` so `cv.md` stays aligned with the active context without hand-editing the canonical files.
 
 #### Step 6: Ready
 Once all files exist, confirm:

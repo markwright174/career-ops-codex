@@ -19,7 +19,6 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, resolve } from 'path';
-import { config as dotenvConfig } from 'dotenv';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import {
   PATHS,
@@ -34,7 +33,26 @@ import {
   updateTrackerPdfStatus,
 } from './repo-ops-lib.mjs';
 
-dotenvConfig({ path: PATHS.dotenv });
+function loadDotenv(path) {
+  if (!existsSync(path)) return;
+  const text = readFileSync(path, 'utf-8');
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const idx = line.indexOf('=');
+    if (idx === -1) continue;
+    const key = line.slice(0, idx).trim();
+    let value = line.slice(idx + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    if (key && process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+}
+
+loadDotenv(PATHS.dotenv);
 
 function parseArgs(argv) {
   const args = argv.slice(2);

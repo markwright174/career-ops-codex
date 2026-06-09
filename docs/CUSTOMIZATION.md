@@ -42,6 +42,22 @@ The HTML template uses these design tokens:
 
 To customize fonts/colors, edit the CSS in the template. Update font files in `fonts/` if switching fonts.
 
+## Personal Overlay Switcher
+
+If you maintain more than one private career context, use the local overlay
+instead of editing the active files by hand:
+
+1. Edit `local/personal-overlay.yml`
+2. Choose the active profile with `active_profile: tstc` or `active_profile: unitek`
+3. Run `npm run personal:sync`
+
+The helper currently switches `cv.md` between `cv-tstc.md` and `cv-unitek.md`.
+It can also render `config/profile.yml`, `modes/_profile.md`, and
+`article-digest.md` if those blocks are added to the overlay later. Chat can
+read and write the local overlay file directly, and Git ignores it.
+For a one-off switch without editing the overlay, run
+`npm run personal:sync -- --profile unitek` or `npm run personal:sync -- --profile tstc`.
+
 ## Negotiation Scripts (modes/_shared.md)
 
 The negotiation section provides frameworks for salary discussions. Replace the example scripts with your own:

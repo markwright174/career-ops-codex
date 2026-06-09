@@ -7,6 +7,7 @@
     "bridge": "node bridge-server.mjs",
     "mcp": "node mcp-server.mjs",
     "mcp:smoke": "node mcp-smoke-test.mjs",
+    "personal:sync": "node sync-personal-overlay.mjs",
     "doctor": "node doctor.mjs",
     "verify": "node verify-pipeline.mjs",
     "normalize": "node normalize-statuses.mjs",

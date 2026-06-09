@@ -558,6 +558,8 @@ const TOOLS = [
     inputSchema: objectSchema({
       brief: { type: 'object', description: 'Structured CV brief JSON for hybrid mode. Matches build-tailored-cv.mjs input.' },
       letter: { type: 'object', description: 'Structured cover-letter JSON for hybrid mode. Matches build-cover-letter.mjs input.' },
+      brief_file: { type: 'string', description: 'Repo-relative or absolute path to a JSON file containing the structured CV brief.' },
+      letter_file: { type: 'string', description: 'Repo-relative or absolute path to a JSON file containing the structured cover-letter payload.' },
       jd_file: { type: 'string', description: 'Absolute or repo-relative path to a JD text file.' },
       text: { type: 'string', description: 'Raw job description text.' },
       report: { type: 'string', description: 'Path to a saved report markdown file.' },
@@ -591,9 +593,17 @@ const TOOLS = [
         type: 'object',
         description: 'Builder-ready CV brief JSON. Must include summary_text, competencies, experience, and skills. Optional projects array is allowed.',
       },
+      brief_file: {
+        type: 'string',
+        description: 'Repo-relative or absolute path to a JSON file containing the builder-ready CV brief.',
+      },
       letter: {
         type: 'object',
         description: 'Builder-ready cover-letter JSON. Must include recipient_lines, greeting, paragraphs, and closing.',
+      },
+      letter_file: {
+        type: 'string',
+        description: 'Repo-relative or absolute path to a JSON file containing the builder-ready cover-letter payload.',
       },
       company: { type: 'string', description: 'Company name.' },
       role: { type: 'string', description: 'Role title.' },
@@ -620,16 +630,26 @@ const TOOLS = [
     name: 'build_quality_package_for_row',
     title: 'Build Quality Package For Row',
     kind: 'write',
-    description: 'Row-aware package workflow. First call with num only to get tracker/report/CV/profile context plus built-in quality rules. Then call again with builder-ready brief and letter JSON to run quality checks and build the package.',
+    description: 'Row-aware package workflow. First call with num only to get tracker/report/CV/profile context plus built-in quality rules. Then either pass builder-ready brief and letter JSON, or set profile_mode plus auto_draft=true to let the repo draft the package from the selected TSTC/Unitek lane.',
     inputSchema: objectSchema({
       num: { type: 'number', minimum: 1, description: 'Existing tracker row number.' },
+      profile_mode: { type: 'string', enum: ['tstc', 'unitek'], description: 'Explicitly choose which personal profile lane to use when auto-drafting or building the package.' },
+      auto_draft: { type: 'boolean', description: 'Let the repo draft builder-ready brief and letter JSON from the selected lane before validating and building the package.' },
       brief: {
         type: 'object',
         description: 'Builder-ready CV brief JSON. Optional on the first context call; required on the build call.',
       },
+      brief_file: {
+        type: 'string',
+        description: 'Repo-relative or absolute path to a JSON file containing the builder-ready CV brief.',
+      },
       letter: {
         type: 'object',
         description: 'Builder-ready cover-letter JSON. Optional on the first context call; required on the build call.',
+      },
+      letter_file: {
+        type: 'string',
+        description: 'Repo-relative or absolute path to a JSON file containing the builder-ready cover-letter payload.',
       },
       date: { type: 'string', description: 'ISO date override (YYYY-MM-DD).' },
       format: { type: 'string', enum: ['letter', 'a4'], description: 'Optional paper format override.' },

@@ -1,0 +1,42 @@
+# Private personal overlay for Chat/Codex profile switching.
+#
+# Copy this file to local/personal-overlay.yml and edit the active_profile
+# value when you want to switch between your TSTC and Unitek contexts.
+#
+# The sync script currently always writes cv.md from the selected cv_source.
+# If you later want it to manage profile.yml, _profile.md, or article-digest.md
+# too, add those blocks under the chosen profile and the script will render them.
+
+active_profile: tstc
+
+profiles:
+  tstc:
+    label: TSTC
+    cv_source: cv-tstc.md
+    cv_target: cv.md
+    notes: Primary instructional-design-manager profile.
+    # profile_yaml:
+    #   candidate:
+    #     full_name: Mark Wright
+    #   ...
+    # profile_md: |
+    #   # User Profile Context -- Mark Wright
+    #   ...
+    # article_digest_md: |
+    #   # Article Digest / Proof Points
+    #   ...
+  unitek:
+    label: Unitek
+    cv_source: cv-unitek.md
+    cv_target: cv.md
+    notes: Healthcare / Unitek learning profile.
+    # profile_yaml:
+    #   candidate:
+    #     full_name: Mark Wright
+    #   ...
+    # profile_md: |
+    #   # User Profile Context -- Mark Wright
+    #   ...
+    # article_digest_md: |
+    #   # Article Digest / Proof Points
+    #   ...

@@ -1,6 +1,19 @@
 $ErrorActionPreference = 'Stop'
 
-$repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repoRoot = $scriptDir
+while ($repoRoot -and -not (Test-Path (Join-Path $repoRoot 'package.json'))) {
+    $parent = Split-Path -Parent $repoRoot
+    if ($parent -eq $repoRoot) {
+        break
+    }
+    $repoRoot = $parent
+}
+
+if (-not (Test-Path (Join-Path $repoRoot 'package.json'))) {
+    throw "Could not locate repo root from $scriptDir"
+}
+
 $port = if ($env:CAREER_OPS_MCP_PORT) { $env:CAREER_OPS_MCP_PORT } else { '8790' }
 $healthUrl = "http://127.0.0.1:$port/health"
 

@@ -51,6 +51,7 @@ layer.
 
 - Treat raw JD text or a job URL as the full auto-pipeline path unless the user explicitly asks for evaluation only.
 - Keep all personalization in `config/profile.yml`, `modes/_profile.md`, `article-digest.md`, or `portals.yml`.
+- If the user is switching between private career contexts, use `local/personal-overlay.yml` plus `npm run personal:sync` to update the active CV instead of hand-editing the main resume files. Support both the saved `active_profile` and one-off overrides like `npm run personal:sync -- --profile unitek`.
 - Never verify a job’s live status with generic web fetch when Playwright is available.
 - Never submit an application for the user.
 - Never add new tracker rows directly to `data/applications.md`; use the TSV addition flow and `merge-tracker.mjs`.

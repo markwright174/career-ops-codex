@@ -17,8 +17,9 @@ connects to a stable local front door instead of directly to the Node MCP port.
   `C:/Users/dntpa/OneDrive/PersonalWebsite/xampp/apache/conf`
 - Apache include added:
   `C:/Users/dntpa/OneDrive/PersonalWebsite/xampp/apache/conf/extra/httpd-career-ops.conf`
-- Career-Ops startup script:
-  [start-mcp-readonly.ps1](/G:/My%20Drive/career-ops/start-mcp-readonly.ps1)
+- Archived local-only fallback scripts:
+  [archive/review/legacy-mcp/start-mcp-readonly.ps1](/G:/My%20Drive/career-ops/archive/review/legacy-mcp/start-mcp-readonly.ps1)
+  [archive/review/legacy-mcp/register-mcp-readonly-task.ps1](/G:/My%20Drive/career-ops/archive/review/legacy-mcp/register-mcp-readonly-task.ps1)
 
 ## One-Time Apache Changes
 
@@ -34,7 +35,7 @@ only serve them to requests originating on the same machine.
 ## Start The Read-Only MCP Server
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start-mcp-readonly.ps1
+powershell -ExecutionPolicy Bypass -File .\archive\review\legacy-mcp\start-mcp-readonly.ps1
 ```
 
 Expected local backend endpoint:
@@ -55,7 +56,7 @@ http://127.0.0.1/career-ops-health
 To register a per-user logon task that starts the read-only MCP server:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\register-mcp-readonly-task.ps1
+powershell -ExecutionPolicy Bypass -File .\archive\review\legacy-mcp\register-mcp-readonly-task.ps1
 ```
 
 Task name:

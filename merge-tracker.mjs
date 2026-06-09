@@ -7,7 +7,8 @@
  * - 8-col: num\tdate\tcompany\trole\tstatus\tscore\tpdf\treport (no notes)
  * - Pipe-delimited (markdown table row): | col | col | ... |
  *
- * Dedup: company normalized + role fuzzy match + report number match
+ * Dedup: exact report number + exact entry number + company normalized +
+ *        canonical role signature match
  * If duplicate with higher score → update in-place, update report link
  * Validates status against states.yml (rejects non-canonical, logs warning)
  *
@@ -127,27 +128,15 @@ function roleTokens(s) {
     .filter(w => (w.length > 3 || SHORT_SPECIALTY.has(w)) && !ROLE_STOPWORDS.has(w));
 }
 
-function roleFuzzyMatch(a, b) {
-  const wordsA = roleTokens(a);
-  const wordsB = roleTokens(b);
-  if (wordsA.length === 0 || wordsB.length === 0) return false;
+function roleCanonicalSignature(text) {
+  return [...new Set(roleTokens(text))].sort().join(' ');
+}
 
-  const setB = new Set(wordsB);
-  const overlap = wordsA.filter(w => setB.has(w));
-  if (overlap.length < 2) return false;
-
-  // Require at least one non-baseline token in the overlap. Roles that
-  // share only generic descriptors like [software, engineer] are NOT the
-  // same role (see Issue #633).
-  const discriminating = overlap.filter(w => !BASELINE_TOKENS.has(w));
-  if (discriminating.length === 0) return false;
-
-  // Jaccard-style ratio on content tokens. Two roles are "the same" only
-  // when the overlap dominates the smaller side — not when they just share
-  // a location + "engineer".
-  const minLen = Math.min(wordsA.length, wordsB.length);
-  const ratio = overlap.length / minLen;
-  return ratio >= 0.6;
+function roleDuplicateMatch(a, b) {
+  const signatureA = roleCanonicalSignature(a);
+  const signatureB = roleCanonicalSignature(b);
+  if (!signatureA || !signatureB) return false;
+  return signatureA === signatureB;
 }
 
 function extractReportNum(reportStr) {
@@ -312,7 +301,8 @@ for (const file of tsvFiles) {
 
   // Check for duplicate by:
   // 1. Exact report number match
-  // 2. Company + role fuzzy match
+  // 2. Exact entry number match
+  // 3. Company + canonical role signature match
   const reportNum = extractReportNum(addition.report);
   let duplicate = null;
 
@@ -330,11 +320,11 @@ for (const file of tsvFiles) {
   }
 
   if (!duplicate) {
-    // Company + role fuzzy match
+    // Company + role canonical signature match
     const normCompany = normalizeCompany(addition.company);
     duplicate = existingApps.find(app => {
       if (normalizeCompany(app.company) !== normCompany) return false;
-      return roleFuzzyMatch(addition.role, app.role);
+      return roleDuplicateMatch(addition.role, app.role);
     });
   }
 
@@ -346,7 +336,7 @@ for (const file of tsvFiles) {
       console.log(`🔄 Update: #${duplicate.num} ${addition.company} — ${addition.role} (${oldScore}→${newScore})`);
       const lineIdx = appLines.indexOf(duplicate.raw);
       if (lineIdx >= 0) {
-        const updatedLine = `| ${duplicate.num} | ${addition.date} | ${addition.company} | ${addition.role} | ${addition.score} | ${duplicate.status} | ${duplicate.pdf} | ${addition.report} | Re-eval ${addition.date} (${oldScore}→${newScore}). ${addition.notes} |`;
+        const updatedLine = `| ${duplicate.num} | ${addition.date} | ${duplicate.company} | ${duplicate.role} | ${addition.score} | ${duplicate.status} | ${duplicate.pdf} | ${addition.report} | Re-eval ${addition.date} (${oldScore}→${newScore}). ${addition.notes} |`;
         appLines[lineIdx] = updatedLine;
         updated++;
       }

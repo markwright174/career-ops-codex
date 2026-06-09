@@ -4,7 +4,7 @@ Houston, TX | +1-832-605-5223 | dntpanic.tpc@gmail.com | https://linkedin.com/in
 
 ## Professional Summary
 
-Senior learning and instructional design leader specializing in curriculum development, instructional design operations, accessibility, and LMS-supported program delivery across higher education, workforce learning, healthcare education, and K-12 contexts. Currently leads instructional design work across a 4-6 program portfolio, supports roughly 20 courses per program, and manages an Agile team of 4-6 instructional designers. Brings direct experience coordinating faculty and stakeholder partners, maintaining complex course portfolios, supporting degreed nursing education pathways across LVN, ADN, and BSN programs, and translating complex content into practical learning experiences.
+Senior learning and instructional design leader specializing in curriculum development, instructional design operations, accessibility, and LMS-supported program delivery across higher education, workforce learning, and K-12 contexts. Currently leads instructional design work across a 4-6 program portfolio, supports roughly 20 courses per program, and manages an Agile team of 4-6 instructional designers. Brings direct experience coordinating faculty and stakeholder partners, maintaining complex course portfolios, leading a proficiency-based education transition across multiple programs, and translating complex content into practical learning experiences.
 
 ## Professional Experience
 
