@@ -19,10 +19,9 @@ frontend for the repo, not like a shell user with git access.
 ## Working Pieces
 
 - `chat-ops.mjs` provides the repo command surface
-- `mcp-server.mjs` serves the MCP tool layer
-- `mcp-oauth.mjs` validates OAuth/OIDC tokens for the MCP server
-- `start-mcp-oauth-readonly.ps1` starts the public read-only OAuth MCP
-- `start-mcp-oauth-write.ps1` starts the public write-enabled OAuth MCP
+- `mcp/server.mjs` serves the MCP tool layer
+- `mcp/oauth.mjs` validates OAuth/OIDC tokens for the MCP server
+- `mcp/reset.ps1` starts or resets the public MCP + tunnel from the shared local config
 
 ## Read Surface
 
@@ -126,6 +125,9 @@ Recent cleanup reduced churn from normal frontend use:
 The frontend is now good enough for day-to-day use, but package quality still
 depends on prompt quality. The most common weak point is conservative tailoring
 that leaves too much baseline resume text untouched.
+Package responses now carry `quality_gate` and `completion_status`, so treat a
+successful build as only "built" unless the response says the package is
+complete or Chat has explicitly verified it.
 
 When rebuilding packages, prefer prompts that push ChatGPT to:
 

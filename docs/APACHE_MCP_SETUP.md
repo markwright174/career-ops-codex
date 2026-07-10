@@ -7,7 +7,7 @@ connects to a stable local front door instead of directly to the Node MCP port.
 
 - Apache/XAMPP listens on your normal local web ports.
 - Apache proxies:
-  - `/career-ops-mcp` -> `http://127.0.0.1:8790/mcp`
+  - `/mcp` -> `http://127.0.0.1:8790/mcp`
   - `/career-ops-health` -> `http://127.0.0.1:8790/health`
 - The Node MCP server remains localhost-only and read-only by default.
 
@@ -47,7 +47,7 @@ http://127.0.0.1:8790/mcp
 Expected Apache front-door endpoints:
 
 ```text
-http://127.0.0.1/career-ops-mcp
+http://127.0.0.1/mcp
 http://127.0.0.1/career-ops-health
 ```
 
@@ -79,7 +79,7 @@ If you expose Apache through Cloudflare or another HTTPS front door, point the
 ChatGPT MCP app at:
 
 ```text
-https://<your-public-host>/career-ops-mcp
+https://<your-public-host>/mcp
 ```
 
 That way Apache remains the stable shareable surface, while the Node MCP
@@ -91,7 +91,7 @@ When OAuth mode is enabled on the MCP server, Apache should also expose the
 protected-resource metadata path:
 
 ```text
-/.well-known/oauth-protected-resource/career-ops-mcp
+/.well-known/oauth-protected-resource/mcp
 ```
 
 This repo's Apache include already proxies that path to the local Node server.

@@ -3,8 +3,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $port = if ($env:CAREER_OPS_MCP_PORT) { $env:CAREER_OPS_MCP_PORT } else { '8790' }
 $healthUrl = "http://127.0.0.1:$port/health"
-$metadataUrl = "http://127.0.0.1:$port/.well-known/oauth-protected-resource/mcp"
-$localConfigPath = Join-Path $repoRoot 'mcp-oauth-local.ps1'
+$localConfigPath = Join-Path $repoRoot 'local\mcp-oauth-local.ps1'
 
 if (Test-Path $localConfigPath) {
     . $localConfigPath
@@ -16,21 +15,6 @@ function Test-CareerOpsHealth {
     try {
         $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 $Url
         return ($response.StatusCode -eq 200 -and $response.Content -match '"service"\s*:\s*"career-ops-mcp"')
-    } catch {
-        return $false
-    }
-}
-
-function Test-CareerOpsWriteHealth {
-    param([string]$Url)
-
-    try {
-        $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 $Url
-        return (
-            $response.StatusCode -eq 200 -and
-            $response.Content -match '"service"\s*:\s*"career-ops-mcp"' -and
-            $response.Content -match '"write_tools_enabled"\s*:\s*true'
-        )
     } catch {
         return $false
     }
@@ -82,8 +66,8 @@ function Get-PortOwnerPid {
     return $null
 }
 
-if ((Test-CareerOpsWriteHealth -Url $healthUrl) -and (Test-CareerOpsOAuthMetadata -Url $metadataUrl)) {
-    Write-Output "career-ops OAuth write MCP is already healthy at $healthUrl"
+if ((Test-CareerOpsHealth -Url $healthUrl) -and (Test-CareerOpsOAuthMetadata -Url $metadataUrl)) {
+    Write-Output "career-ops OAuth MCP is already healthy at $healthUrl"
     exit 0
 }
 
@@ -100,14 +84,16 @@ if ($existingPid) {
 }
 
 $env:CAREER_OPS_MCP_HOST = '127.0.0.1'
-$env:CAREER_OPS_MCP_ALLOW_WRITE = '1'
+$env:CAREER_OPS_MCP_ALLOW_WRITE = '0'
 $env:CAREER_OPS_MCP_TOKEN = ''
 $env:CAREER_OPS_MCP_PUBLIC_BASE_URL = Get-RequiredEnvValue -Name 'CAREER_OPS_MCP_PUBLIC_BASE_URL' -Example 'https://mcp.example.com'
-$env:CAREER_OPS_MCP_PUBLIC_PATH = '/mcp'
+$env:CAREER_OPS_MCP_PUBLIC_PATH = Get-RequiredEnvValue -Name 'CAREER_OPS_MCP_PUBLIC_PATH' -Example '/mcp'
 $env:CAREER_OPS_MCP_OAUTH_ISSUER = Get-RequiredEnvValue -Name 'CAREER_OPS_MCP_OAUTH_ISSUER' -Example 'https://auth.example.com/'
-$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = Get-RequiredEnvValue -Name 'CAREER_OPS_MCP_OAUTH_AUDIENCE' -Example 'https://mcp.example.com/'
+$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = Get-RequiredEnvValue -Name 'CAREER_OPS_MCP_OAUTH_AUDIENCE' -Example 'https://mcp.example.com/mcp'
 $env:CAREER_OPS_MCP_READ_SCOPE = '__none__'
 $env:CAREER_OPS_MCP_WRITE_SCOPE = 'career_ops:write'
+$publicPath = $env:CAREER_OPS_MCP_PUBLIC_PATH.TrimStart('/')
+$metadataUrl = "http://127.0.0.1:$port/.well-known/oauth-protected-resource/$publicPath"
 
 $nodeProc = Start-Process powershell `
     -WindowStyle Hidden `
@@ -116,10 +102,10 @@ $nodeProc = Start-Process powershell `
 
 for ($i = 0; $i -lt 8; $i++) {
     Start-Sleep -Seconds 1
-    if ((Test-CareerOpsWriteHealth -Url $healthUrl) -and (Test-CareerOpsOAuthMetadata -Url $metadataUrl)) {
-        Write-Output "career-ops OAuth write MCP started on $($env:CAREER_OPS_MCP_PUBLIC_BASE_URL)$($env:CAREER_OPS_MCP_PUBLIC_PATH) (local PID $($nodeProc.Id))"
+    if ((Test-CareerOpsHealth -Url $healthUrl) -and (Test-CareerOpsOAuthMetadata -Url $metadataUrl)) {
+        Write-Output "career-ops OAuth MCP started on $($env:CAREER_OPS_MCP_PUBLIC_BASE_URL)$($env:CAREER_OPS_MCP_PUBLIC_PATH) (local PID $($nodeProc.Id))"
         exit 0
     }
 }
 
-Write-Error "career-ops OAuth write MCP did not start successfully on port $port"
+Write-Error "career-ops OAuth MCP did not start successfully on port $port"

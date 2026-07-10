@@ -19,7 +19,8 @@ jds/*
 config/profile.yml
 portals.yml
 modes/_profile.md
-.local/personal-overlay.yml
+local/personal-overlay.yml
+local/mcp-oauth-local.ps1
 .update-dismissed
 .update-lock
 
@@ -31,7 +32,6 @@ node_modules/
 data/chat-actions.ndjson
 cv.md
 tmp_*.html
-mcp-oauth-local.ps1
 
 # OS
 .DS_Store

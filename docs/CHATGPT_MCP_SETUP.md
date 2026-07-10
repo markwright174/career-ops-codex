@@ -1,7 +1,7 @@
 # ChatGPT MCP Setup
 
 This is the practical setup path for using ChatGPT as a frontend over the
-Career-Ops repo through the MCP server in [mcp-server.mjs](/G:/My%20Drive/career-ops/mcp-server.mjs).
+Career-Ops repo through the MCP server in [mcp/server.mjs](/G:/My%20Drive/career-ops/mcp/server.mjs).
 
 ## What This Solves
 
@@ -35,10 +35,10 @@ Per OpenAI’s current docs:
 
 That means your local server must be exposed remotely before ChatGPT can use it.
 
-For public-repo hygiene, keep your real MCP/Auth hostnames in an ignored local
-file instead of hardcoding them into tracked scripts. This repo includes
-[mcp-oauth-local.example.ps1](/G:/My%20Drive/career-ops/mcp-oauth-local.example.ps1)
-as the template for that local config.
+For public-repo hygiene, keep your real MCP/Auth hostnames and tunnel token in
+one ignored local file instead of hardcoding them into tracked scripts. This
+repo includes [local/mcp-oauth-local.example.ps1](/G:/My%20Drive/career-ops/local/mcp-oauth-local.example.ps1)
+as the template for that single local config.
 
 ## Recommended Rollout
 
@@ -131,7 +131,7 @@ safe write layer.
 Only after read-only testing feels solid:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start-mcp-oauth-write.ps1
+powershell -ExecutionPolicy Bypass -File .\mcp\reset.ps1 -AllowWrite
 ```
 
 Then reconnect or restart the remote session.
@@ -174,13 +174,20 @@ tailoring itself, use this pattern:
 2. ChatGPT writes the tailored CV brief JSON and cover-letter JSON in chat
 3. ChatGPT calls `prepare_package` with `brief` and `letter`
 4. Career-Ops builds the HTML/PDF artifacts and updates tracker PDF status
+5. The package response now includes `quality_gate` and `completion_status`
+
+Treat `completion_status: complete` as the automatic finish line. If the
+response says `needs_chat_review`, Chat should do a final editorial pass before
+considering the package done. If you want Chat to bless the final package
+after review, pass `chat_verified=true` on the final package call.
 
 For an already-evaluated tracker row, prefer `build_quality_package_for_row`.
 It lets ChatGPT fetch row/report/CV/profile context and then run the package
 through built-in quality checks without repeating a long package prompt.
 Those checks now cover both the CV and the cover letter, including role-aware
 letter requirements such as clear role mention, direct company reference, and
-report-derived theme coverage.
+report-derived theme coverage. The result also includes `quality_gate` and
+`completion_status` so Chat can tell built-from-ready apart.
 
 ## Suggested First ChatGPT Tests
 
@@ -211,7 +218,8 @@ For first remote use:
 - keep write tools off
 - keep scans and evaluations intentional
 - do not expose the tunnel longer than needed
-- prefer fresh tunnel sessions rather than a permanently exposed endpoint
+- prefer the single reset script over separate start helpers
+- use fresh tunnel sessions when you need to refresh the connector
 
 Longer-term hardening still worth doing:
 

@@ -686,14 +686,10 @@ function joinWithAnd(items) {
   return `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}`;
 }
 
-function buildAutoDraftSummary(row, profileMode, themes) {
+function buildAutoDraftSummary(row, themes) {
   const themeLabels = Array.isArray(themes) ? themes.map((theme) => theme.label).filter(Boolean) : [];
   const themeOne = themeLabels[0] || 'practical learning delivery';
   const themeTwo = themeLabels[1] || 'stakeholder coordination';
-
-  if (profileMode === 'unitek') {
-    return `Healthcare and instructional design leader who builds practical learning systems across nursing and allied health programs, pairing curriculum governance, accreditation support, and stakeholder coordination with accessible delivery.`;
-  }
 
   if (/\b(learning product|professional learning|enablement|capability)\b/i.test(`${row.role || ''} ${row.notes || ''}`)) {
     return `Learning product and educator enablement leader who builds practical learning systems that support ${themeOne} and ${themeTwo} while keeping delivery usable, measurable, and easy to adopt.`;
@@ -702,22 +698,7 @@ function buildAutoDraftSummary(row, profileMode, themes) {
   return `Senior learning and instructional design leader who builds scalable learning ecosystems, leadership development programs, compliance-ready learning operations, and AI-supported adoption pathways across complex environments.`;
 }
 
-function buildAutoDraftCompetencies(row, profileMode) {
-  if (profileMode === 'unitek') {
-    return [
-      'Healthcare education and learning operations',
-      'Curriculum governance and accreditation support',
-      'Clinical and lab learning design',
-      'LMS administration and optimization',
-      'Accessibility and universal design',
-      'Stakeholder facilitation and coaching',
-      'Program measurement and continuous improvement',
-      'AI-supported content refinement',
-      'Documentation and process discipline',
-      'Cross-functional coordination',
-    ];
-  }
-
+function buildAutoDraftCompetencies(row) {
   if (/\b(learning product|professional learning|enablement|capability)\b/i.test(`${row.role || ''} ${row.notes || ''}`)) {
     return [
       'Learning product strategy and delivery',
@@ -735,7 +716,6 @@ function buildAutoDraftCompetencies(row, profileMode) {
 
   return [
     'L&D strategy and ecosystem design',
-    'Leadership development and capability building',
     'Learning operations and process discipline',
     'Compliance training and governance',
     'AI literacy and adoption support',
@@ -744,6 +724,7 @@ function buildAutoDraftCompetencies(row, profileMode) {
     'Stakeholder facilitation and coaching',
     'Program measurement and continuous improvement',
     'Vendor and cross-functional coordination',
+    'Leadership development and capability building',
   ];
 }
 
@@ -757,16 +738,7 @@ function themeClauseMap() {
   };
 }
 
-function laneClauseMap(profileMode) {
-  if (profileMode === 'unitek') {
-    return [
-      'with healthcare-program rigor and accreditation alignment',
-      'across LVN, ADN, and BSN delivery',
-      'in support of deans and program directors',
-      'with clinical and lab readiness in mind',
-    ];
-  }
-
+function laneClauseMap() {
   return [
     'across multiple programs and delivery formats',
     'with quality, timelines, and stakeholder priorities aligned',
@@ -780,7 +752,7 @@ function tailorExperienceEntry(entry, context, index) {
   const themeClauses = themes
     .map((theme) => themeClauseMap()[theme.key])
     .filter(Boolean);
-  const laneClauses = laneClauseMap(context.selected_profile_mode || context.recommended_profile_mode || 'tstc');
+  const laneClauses = laneClauseMap();
   const roleClauses = [...themeClauses, ...laneClauses].filter(Boolean);
   const baseBullets = Array.isArray(entry.bullets) ? entry.bullets : [];
   const maxBulletsToTailor = Math.min(2, baseBullets.length);
@@ -803,17 +775,17 @@ function buildAutoDraftLetter(context) {
     ? context.cover_letter_focus_themes.map((theme) => theme.label).filter(Boolean)
     : [];
   const themeOne = themeLabels[0] || 'operations and process discipline';
-  const themeTwo = themeLabels[1] || 'academic and stakeholder coordination';
-  const themeThree = themeLabels[2] || 'delivery quality, assessment, and accessibility';
+  const themeTwo = themeLabels[1] || 'prioritization, intake, and timelines';
+  const themeThree = themeLabels[2] || 'curriculum and course-development maintenance';
   const focusCompanies = (Array.isArray(context.focus_roles) ? context.focus_roles : [])
     .map((entry) => entry.company)
     .filter(Boolean);
   const focusCompanyText = joinWithAnd(focusCompanies);
 
   const opening = `I am excited to apply for the ${context.role} role at ${context.company} because it sits directly at the intersection of the work I do best: building learning systems that help people grow, improve performance, and adopt new ways of working in a practical, measurable way.`;
-  const bodyOne = `Across ${focusCompanyText || 'my recent roles in higher education, healthcare education, and learning operations'}, I have led learning operations, supported teams through change, partnered closely with subject matter experts, and turned complex content into usable learning experiences. That mix of leadership and hands-on execution lines up well with ${context.company}'s focus on ${themeOne} and ${themeTwo}.`;
-  const bodyTwo = `I am especially drawn to the way ${context.company} is approaching ${themeOne} and ${themeThree} together rather than treating them as separate efforts. My experience has been strongest in environments where learning has to be practical, accessible, and easy to apply, and I would bring that same mindset to helping teams strengthen capability, keep programs aligned with business priorities, and support the people who use the learning every day.`;
-  const bodyThree = `The chance to contribute to ${context.company}'s mission in a role that combines strategy, operations, and learner support is compelling, and I would welcome the opportunity to help build programs that are thoughtful, durable, and useful.`;
+  const bodyOne = `Across ${focusCompanyText || 'my recent roles in higher education, workforce learning, and learning operations'}, I have led curriculum and learning operations, supported teams through change, partnered closely with subject matter experts, and turned complex content into usable learning experiences. That mix of leadership and hands-on execution lines up well with ${context.company}'s emphasis on ${themeOne}.`;
+  const bodyTwo = `I am especially drawn to the way ${context.company} is asking someone to keep curricula current, relevant, and measurable while also partnering across the business. My experience has been strongest in environments where learning has to be practical, accessible, and easy to apply, and I would bring that same mindset to helping teams strengthen capability, keep programs aligned with business priorities, and support the people who use the learning every day.`;
+  const bodyThree = `The chance to contribute to ${context.company}'s mission in a role that combines strategy, operations, and learner support is compelling, especially where learning path architecture and ongoing content maintenance matter as much as the initial design.`;
 
   return {
     date: todayIso(),
@@ -825,110 +797,88 @@ function buildAutoDraftLetter(context) {
 }
 
 function buildAutoDraftQualityPackage(context, chronology) {
-  const profileMode = context.selected_profile_mode || context.recommended_profile_mode || 'tstc';
+  const profileMode = 'tstc';
   const brief = {
-    summary_text: buildAutoDraftSummary(context, profileMode, context.cover_letter_focus_themes),
-    competencies: buildAutoDraftCompetencies(context, profileMode),
+    summary_text: buildAutoDraftSummary(context, context.cover_letter_focus_themes),
+    competencies: buildAutoDraftCompetencies(context),
     experience: chronology.slice(0, 4).map((entry, index) => tailorExperienceEntry(entry, context, index)),
-    skills: profileMode === 'unitek'
-      ? [
-          {
-            category: 'Healthcare Learning',
-            items: [
-              'healthcare education',
-              'curriculum governance',
-              'accreditation support',
-              'clinical and lab learning design',
-              'adult learning',
-              'stakeholder coordination',
-            ],
-          },
-          {
-            category: 'Learning Technology',
-            items: [
-              'LMS administration',
-              'Canvas',
-              'Brightspace',
-              'Blackboard',
-              'accessibility',
-              'Articulate Storyline',
-              'Articulate Rise',
-            ],
-          },
-          {
-            category: 'Leadership & Operations',
-            items: [
-              'team leadership',
-              'process improvement',
-              'cross-functional collaboration',
-              'coaching',
-              'documentation',
-            ],
-          },
-          {
-            category: 'AI & Content Development',
-            items: [
-              'AI-supported workflow',
-              'assessment generation',
-              'content refinement',
-              'copyediting',
-              'curriculum review',
-            ],
-          },
-        ]
-      : [
-          {
-            category: 'Learning & Development',
-            items: [
-              'L&D strategy',
-              'capability building',
-              'learning ecosystems',
-              'program design',
-              'measurement',
-              'facilitation',
-            ],
-          },
-          {
-            category: 'Learning Technology',
-            items: [
-              'LMS administration',
-              'D2L Brightspace',
-              'Blackboard',
-              'Canvas',
-              'Codio',
-              'accessibility',
-              'Articulate Storyline',
-              'Articulate Rise',
-              'Adobe Captivate',
-            ],
-          },
-          {
-            category: 'Leadership & Operations',
-            items: [
-              'team leadership',
-              'stakeholder management',
-              'coaching',
-              'process improvement',
-              'vendor coordination',
-            ],
-          },
-          {
-            category: 'AI & Content Development',
-            items: [
-              'AI-supported workflow',
-              'assessment generation',
-              'curriculum review',
-              'content refinement',
-              'copyediting',
-            ],
-          },
+    skills: [
+      {
+        category: 'Learning & Development',
+        items: [
+          'L&D strategy',
+          'capability building',
+          'learning ecosystems',
+          'program design',
+          'measurement',
+          'facilitation',
         ],
+      },
+      {
+        category: 'Learning Technology',
+        items: [
+          'LMS administration',
+          'D2L Brightspace',
+          'Blackboard',
+          'Canvas',
+          'Codio',
+          'accessibility',
+          'Articulate Storyline',
+          'Articulate Rise',
+          'Adobe Captivate',
+        ],
+      },
+      {
+        category: 'Leadership & Operations',
+        items: [
+          'team leadership',
+          'stakeholder management',
+          'coaching',
+          'process improvement',
+          'vendor coordination',
+        ],
+      },
+      {
+        category: 'AI & Content Development',
+        items: [
+          'AI-supported workflow',
+          'assessment generation',
+          'curriculum review',
+          'content refinement',
+          'copyediting',
+        ],
+      },
+    ],
     projects: [],
   };
 
   return {
     brief,
     letter: buildAutoDraftLetter(context),
+  };
+}
+
+function buildAutoDraftPackageContext(flags = {}) {
+  const company = String(flags.company || 'unknown-company').trim();
+  const role = String(flags.role || 'unknown-role').trim();
+  const report = flags.report ? String(flags.report) : '';
+  const reportPath = report ? resolve(ROOT, report) : '';
+  const reportText = reportPath && existsSync(reportPath) ? readFileSync(reportPath, 'utf-8') : '';
+  const reportRiskSignals = extractReportRiskSignals(reportText);
+  const recommendedProfileMode = 'tstc';
+  const selectedProfileMode = 'tstc';
+  const baseCvSource = cvPathForMode(selectedProfileMode);
+  const chronology = parseCvChronologyFromPath(baseCvSource);
+  return {
+    company,
+    role,
+    report: report || null,
+    report_text: reportText,
+    report_risk_signals: reportRiskSignals,
+    profile_mode: 'tstc',
+    recommended_cv_source: cvPathForMode(recommendedProfileMode),
+    base_cv_source: baseCvSource,
+    focus_roles: chronology.slice(0, 4).map((entry) => ({ company: entry.company, role: entry.role })),
   };
 }
 
@@ -1097,6 +1047,65 @@ function validateQualityPackageForRow(brief, letter, context) {
   return { errors, warnings, changed_roles: changedRoles, changed_focus_roles: changedFocusRoles };
 }
 
+function isTruthyFlagValue(value) {
+  if (typeof value === 'boolean') return value;
+  if (value === null || value === undefined) return false;
+  const normalized = String(value).trim().toLowerCase();
+  return ['1', 'true', 'yes', 'y', 'on'].includes(normalized);
+}
+
+function summarizePackageReadiness({ errors = [], warnings = [], reviewed = false, chatVerified = false } = {}) {
+  const hasErrors = Array.isArray(errors) && errors.length > 0;
+  const hasWarnings = Array.isArray(warnings) && warnings.length > 0;
+  const reviewedNow = Boolean(reviewed || chatVerified);
+
+  if (hasErrors) {
+    return {
+      build_state: 'blocked',
+      quality_state: 'failed',
+      completion_status: 'blocked',
+      ready_for_submission: false,
+      review_required: false,
+      chat_verified: Boolean(chatVerified),
+      reviewed: reviewedNow,
+    };
+  }
+
+  if (!reviewedNow) {
+    return {
+      build_state: 'built',
+      quality_state: 'not_reviewed',
+      completion_status: 'needs_chat_review',
+      ready_for_submission: false,
+      review_required: true,
+      chat_verified: Boolean(chatVerified),
+      reviewed: false,
+    };
+  }
+
+  if (hasWarnings && !chatVerified) {
+    return {
+      build_state: 'built',
+      quality_state: 'review_required',
+      completion_status: 'needs_chat_review',
+      ready_for_submission: false,
+      review_required: true,
+      chat_verified: false,
+      reviewed: true,
+    };
+  }
+
+  return {
+    build_state: 'built',
+    quality_state: hasWarnings ? 'reviewed_with_warnings' : 'passed',
+    completion_status: 'complete',
+    ready_for_submission: true,
+    review_required: false,
+    chat_verified: Boolean(chatVerified),
+    reviewed: true,
+  };
+}
+
 function slugify(text) {
   return String(text || '')
     .toLowerCase()
@@ -1117,29 +1126,14 @@ function normalizeCompany(text) {
 }
 
 function resolveProfileMode(raw) {
-  const mode = String(raw || '').trim().toLowerCase();
-  if (mode === 'tstc' || mode === 'unitek') return mode;
-  return '';
+  return String(raw || '').trim().toLowerCase() === 'tstc' ? 'tstc' : '';
 }
 
 function inferProfileMode({ company = '', role = '', contextText = '' } = {}) {
-  const text = normalizeText([company, role, contextText].filter(Boolean).join(' '));
-  let tstc = 0;
-  let unitek = 0;
-
-  if (/\b(manager|director|head)\b/.test(text)) tstc += 2;
-  if (/\b(agile|operations|operational|portfolio|programs?|pbe|proficiency)\b/.test(text)) tstc += 2;
-  if (/\b(community college|technical college|workforce)\b/.test(text)) tstc += 2;
-
-  if (/\b(lead|leadership)\b/.test(text)) unitek += 1;
-  if (/\b(bsn|adn|lvn|nursing|healthcare|higher education|curriculum committee)\b/.test(text)) unitek += 3;
-  if (/\b(syllabus|learning outcomes|assessment|lms)\b/.test(text)) unitek += 2;
-
-  return unitek > tstc ? 'unitek' : 'tstc';
+  return 'tstc';
 }
 
 function cvPathForMode(mode) {
-  if (mode === 'unitek') return join(ROOT, 'cv-unitek.md');
   return join(ROOT, 'cv-tstc.md');
 }
 
@@ -1282,14 +1276,18 @@ function buildPackageFromStructuredInput(flags = {}) {
   const dryRun = String(flags['dry-run'] || flags.dry_run || '').toLowerCase() === 'true';
   const reportPath = report ? resolve(ROOT, report) : '';
   const reportText = reportPath && existsSync(reportPath) ? readFileSync(reportPath, 'utf-8') : '';
-  const profileMode = resolveProfileMode(flags['profile-mode'] || flags.profile_mode)
-    || resolveProfileMode(brief.profile_mode)
-    || inferProfileMode({ company, role, contextText: reportText });
+  const profileMode = 'tstc';
   const cvSource = cvPathForMode(profileMode);
   const validationErrors = [
     ...validateHybridBrief(brief, cvSource),
     ...validateHybridLetter(letter),
   ];
+  const readiness = summarizePackageReadiness({
+    errors: validationErrors,
+    warnings: [],
+    reviewed: isTruthyFlagValue(flags.quality_reviewed || flags.qualityReviewed || flags.chat_verified || flags.chatVerified),
+    chatVerified: isTruthyFlagValue(flags.chat_verified || flags.chatVerified),
+  });
 
   if (!company) throw new Error('company is required for hybrid package build.');
   if (!role) throw new Error('role is required for hybrid package build.');
@@ -1299,7 +1297,6 @@ function buildPackageFromStructuredInput(flags = {}) {
 
   brief.format = format;
   letter.format = format;
-  brief.profile_mode = profileMode;
   brief.cv_path = cvSource;
 
   const briefPath = join(OUTPUT_DIR, `cv-${candidateSlug}-${companySlug}-${date}.brief.json`);
@@ -1315,16 +1312,16 @@ function buildPackageFromStructuredInput(flags = {}) {
     mode: 'hybrid',
     company,
     role,
-    profile_mode: profileMode,
     cv_source: cvSource,
     format,
     date,
-    report,
-    url,
-    outputs: {
-      brief_json: briefPath,
-      cv_html: cvHtmlPath,
-      cv_pdf: cvPdfPath,
+      report,
+      url,
+      quality_gate: readiness,
+      outputs: {
+        brief_json: briefPath,
+        cv_html: cvHtmlPath,
+        cv_pdf: cvPdfPath,
       cover_letter_json: letterPath,
       cover_letter_html: coverHtmlPath,
       cover_letter_pdf: coverPdfPath,
@@ -1338,6 +1335,8 @@ function buildPackageFromStructuredInput(flags = {}) {
       mode: 'hybrid',
       error: 'Hybrid package payload failed validation.',
       validation_errors: validationErrors,
+      quality_gate: readiness,
+      ...readiness,
       expected_shapes: {
         brief: {
           summary_text: 'string',
@@ -1360,6 +1359,8 @@ function buildPackageFromStructuredInput(flags = {}) {
     return {
       ...payload,
       dry_run: true,
+      quality_gate: readiness,
+      ...readiness,
       brief_preview: brief,
       letter_preview: letter,
     };
@@ -1424,6 +1425,8 @@ function buildPackageFromStructuredInput(flags = {}) {
   return {
     ...payload,
     dry_run: false,
+    quality_gate: readiness,
+    ...readiness,
     pdf_updated: pdfUpdated,
     verify: {
       ok: verifyRun.ok,
@@ -1737,12 +1740,8 @@ function buildQualityPackageForRow(flags = {}) {
     : null;
   const reportUrl = reportContent ? extractReportUrl(reportContent) : null;
   const reportRiskSignals = extractReportRiskSignals(reportContent || '');
-  const recommendedProfileMode = inferProfileMode({
-    company: row.company,
-    role: row.role,
-    contextText: reportContent || row.notes || '',
-  });
-  const selectedProfileMode = resolveProfileMode(flags['profile-mode'] || flags.profile_mode) || recommendedProfileMode;
+  const recommendedProfileMode = 'tstc';
+  const selectedProfileMode = 'tstc';
   const baseCvSource = cvPathForMode(selectedProfileMode);
   const chronology = parseCvChronologyFromPath(baseCvSource);
   const profileContext = buildProfileContextSummary();
@@ -1759,8 +1758,7 @@ function buildQualityPackageForRow(flags = {}) {
     report_url: reportUrl,
     cover_letter_focus_themes: inferCoverLetterThemes(reportContent || '', row),
     report_risk_signals: reportRiskSignals,
-    recommended_profile_mode: recommendedProfileMode,
-    selected_profile_mode: selectedProfileMode,
+    profile_mode: 'tstc',
     recommended_cv_source: cvPathForMode(recommendedProfileMode),
     base_cv_source: baseCvSource,
     focus_roles: chronology.slice(0, 4).map((entry) => ({ company: entry.company, role: entry.role })),
@@ -1785,8 +1783,6 @@ function buildQualityPackageForRow(flags = {}) {
       ok: true,
       mode: 'context',
       context: {
-        selected_profile_mode: selectedProfileMode,
-        recommended_profile_mode: recommendedProfileMode,
         base_cv_source: baseCvSource,
         tracker_row: {
           ...row,
@@ -1801,7 +1797,7 @@ function buildQualityPackageForRow(flags = {}) {
         profile_context: profileContext.files,
       },
       quality_rules: rules,
-      next_step: `Choose the profile lane first (${selectedProfileMode}) if needed, then draft builder-ready brief and letter JSON, or call quality-package-row again with auto_draft=true to let the repo draft them from the selected lane.`,
+      next_step: 'Draft builder-ready brief and letter JSON, or call quality-package-row again with auto_draft=true to let the repo draft them from the active TSTC lane.',
     };
   }
 
@@ -1820,6 +1816,12 @@ function buildQualityPackageForRow(flags = {}) {
   }
 
   const quality = validateQualityPackageForRow(brief, letter, context);
+  const readiness = summarizePackageReadiness({
+    errors: quality.errors,
+    warnings: quality.warnings,
+    reviewed: true,
+    chatVerified: isTruthyFlagValue(flags.chat_verified || flags.chatVerified),
+  });
   if (quality.errors.length > 0) {
     return {
       action: 'quality-package-row',
@@ -1828,6 +1830,8 @@ function buildQualityPackageForRow(flags = {}) {
       error: 'Quality package payload failed package-quality checks.',
       quality_errors: quality.errors,
       quality_warnings: quality.warnings,
+      quality_gate: readiness,
+      ...readiness,
       quality_rules: rules,
       context,
     };
@@ -1839,7 +1843,6 @@ function buildQualityPackageForRow(flags = {}) {
     role: row.role,
     report: reportRelPath || flags.report,
     url: reportUrl || flags.url,
-    'profile-mode': String(flags['profile-mode'] || flags.profile_mode || selectedProfileMode),
     'brief-json': briefJson,
     'letter-json': letterJson,
   };
@@ -1853,6 +1856,8 @@ function buildQualityPackageForRow(flags = {}) {
       changed_roles: quality.changed_roles,
       changed_focus_roles: quality.changed_focus_roles,
     },
+    quality_gate: readiness,
+    ...readiness,
     quality_rules: rules,
     context,
   };
@@ -2774,6 +2779,27 @@ async function main() {
           error: err.message,
         };
       }
+    } else if (isTruthyFlag(parsed.flags.auto_draft)) {
+      const autoContext = buildAutoDraftPackageContext(parsed.flags);
+      const chronology = parseCvChronologyFromPath(autoContext.base_cv_source);
+      const drafted = buildAutoDraftQualityPackage(autoContext, chronology);
+      try {
+        result = buildPackageFromStructuredInput({
+          ...parsed.flags,
+          company: autoContext.company,
+          role: autoContext.role,
+          report: autoContext.report || parsed.flags.report,
+          'brief-json': JSON.stringify(drafted.brief),
+          'letter-json': JSON.stringify(drafted.letter),
+        });
+      } catch (err) {
+        result = {
+          action,
+          ok: false,
+          mode: 'hybrid',
+          error: err.message,
+        };
+      }
     } else {
       const scriptArgs = [];
       if (parsed.flags['jd-file']) scriptArgs.push('--jd-file', String(parsed.flags['jd-file']));
@@ -2788,6 +2814,18 @@ async function main() {
         ok: true,
         mode: 'gemini',
         ...JSON.parse(run.stdout),
+        quality_gate: summarizePackageReadiness({
+          errors: [],
+          warnings: [],
+          reviewed: false,
+          chatVerified: false,
+        }),
+        ...summarizePackageReadiness({
+          errors: [],
+          warnings: [],
+          reviewed: false,
+          chatVerified: false,
+        }),
       } : {
         action,
         ok: false,

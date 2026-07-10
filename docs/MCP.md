@@ -76,15 +76,10 @@ Enable write tools only intentionally:
 $env:CAREER_OPS_MCP_ALLOW_WRITE = '1'
 ```
 
-Or use the dedicated OAuth startup helpers in this repo:
+Or use the single reset script in this repo:
 
 ```powershell
-# one-time local setup
-Copy-Item .\mcp-oauth-local.example.ps1 .\mcp-oauth-local.ps1
-# then edit mcp-oauth-local.ps1 with your real domains
-
-powershell -ExecutionPolicy Bypass -File .\start-mcp-oauth-readonly.ps1
-powershell -ExecutionPolicy Bypass -File .\start-mcp-oauth-write.ps1
+powershell -ExecutionPolicy Bypass -File .\mcp\reset.ps1
 ```
 
 ## OAuth / Auth0 Mode
@@ -95,9 +90,9 @@ tokens and advertises authorization discovery metadata for MCP clients:
 
 ```powershell
 $env:CAREER_OPS_MCP_PUBLIC_BASE_URL = 'https://mcp.example.com'
-$env:CAREER_OPS_MCP_PUBLIC_PATH = '/career-ops-mcp'
+$env:CAREER_OPS_MCP_PUBLIC_PATH = '/mcp'
 $env:CAREER_OPS_MCP_OAUTH_ISSUER = 'https://auth.example.com/'
-$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = 'https://mcp.example.com/'
+$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = 'https://mcp.example.com/mcp'
 ```
 
 Optional scopes:
@@ -118,9 +113,9 @@ This is designed to work well with Auth0 custom domains, for example:
 
 ```powershell
 $env:CAREER_OPS_MCP_PUBLIC_BASE_URL = 'https://mcp.example.com'
-$env:CAREER_OPS_MCP_PUBLIC_PATH = '/career-ops-mcp'
+$env:CAREER_OPS_MCP_PUBLIC_PATH = '/mcp'
 $env:CAREER_OPS_MCP_OAUTH_ISSUER = 'https://auth.example.com/'
-$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = 'https://mcp.example.com/'
+$env:CAREER_OPS_MCP_OAUTH_AUDIENCE = 'https://mcp.example.com/mcp'
 ```
 
 ## ChatGPT Compatibility Note
@@ -248,6 +243,17 @@ avoiding Gemini auth failures for the ChatGPT frontend path.
 
 This lets ChatGPT do the tailoring while the repo still owns artifact creation
 and tracker updates, without depending on Gemini for package generation.
+Package responses now include a `quality_gate` object plus `completion_status`
+so Chat can distinguish between:
+
+- `built` artifacts
+- packages that still need Chat review
+- packages that are fully ready to send
+
+Treat a package as complete only when `completion_status` is `complete` or
+after Chat has explicitly verified the artifact quality.
+If Chat wants to bless a package after review, pass `chat_verified=true` on the
+same package tool with the final payload.
 
 For an existing tracker row, prefer `build_quality_package_for_row`:
 
@@ -267,6 +273,7 @@ For an existing tracker row, prefer `build_quality_package_for_row`:
    - package build
    - tracker PDF update
    - `verify-pipeline.mjs`
+   - returns `quality_gate` and `completion_status` so Chat can decide whether the artifact is actually ready
 
 This is the preferred path when the user says things like "let's apply" for a
 known tracker row and you want the repo to carry the package rubric instead of

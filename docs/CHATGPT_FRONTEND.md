@@ -165,7 +165,8 @@ npm run chat -- evaluate --jd-file output/jd-example.txt
 ### `package`
 
 Generate a tailored CV + cover letter package from a JD and optional report
-context.
+context. The returned package response should be treated as "built, not
+necessarily ready" unless it explicitly says `completion_status: complete`.
 
 ```bash
 npm run chat -- package --jd-file output/jd-example.txt --report reports/074-oracle-2026-05-07.md --company Oracle --role "Instructional Designer & Learning Developer"
@@ -218,6 +219,7 @@ repo raw unless deeper context is needed:
 6. `quick-apply` when the user asks for the current default CV or cover letter
 7. `project-profile` when the user needs the current attachable profile mirror
 8. `verify` after meaningful pipeline edits
+9. `quality_gate` / `completion_status` from package responses when deciding whether a package is actually complete
 
 ## Suggested Prompt For ChatGPT
 

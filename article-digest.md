@@ -19,17 +19,18 @@ Facilitation / enablement evidence:
 
 ## Healthcare Education Domain
 
-- In the current role, Mark manages curriculum design, development, and maintenance across the full development cycle for degreed nursing education programs, including LVN, ADN, and BSN pathways.
-- This work provides direct familiarity with healthcare education expectations, regulated instructional environments, and the operational realities of program maintenance across complex learning tracks.
-- At Unitek, Mark's primary focus is undergraduate medical education-aligned nursing pathways (LVN, ADN, BSN), including design for clinical and lab learning experiences.
-- He works directly with Deans and program directors on curriculum design and implementation decisions.
-- He supports accreditation-related curriculum and program documentation work across California, New Mexico, Arizona, Utah, and Idaho, with ongoing accreditation work in New Hampshire.
+- Mark's recent healthcare education work focused on undergraduate medical education-aligned nursing pathways (LVN, ADN, BSN), including design for clinical and lab learning experiences.
+- That work built direct familiarity with healthcare education expectations, regulated instructional environments, and the operational realities of program maintenance across complex learning tracks.
+- He worked directly with Deans and program directors on curriculum design and implementation decisions.
+- He supported accreditation-related curriculum and program documentation work across California, New Mexico, Arizona, Utah, and Idaho, with ongoing accreditation work in New Hampshire.
 
 ## Confirmed Tool Additions
 
 - Intermediate experience with Adobe Captivate.
 - Working knowledge of xAPI and Tin Can API through recent professional development.
 - UTeach contract work is strong evidence for learning-product and educator-enablement framing: platform migration, accessibility updates, and learner experience design consultation for a public-facing educator audience.
+- TSTC is a Google Workspace organization, so current day-to-day business work includes Google Workspace tools such as Docs, Sheets, Slides, and Meet.
+- Confirmed personal or professional familiarity with password management tools, secure sign-in practices, Microsoft tools, and Slack.
 
 Evidence boundaries:
 - Do not overstate this as formal enterprise AI enablement ownership.

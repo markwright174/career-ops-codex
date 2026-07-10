@@ -1,13 +1,7 @@
 active_profile: tstc
 
-profiles:
-  tstc:
-    label: TSTC
-    cv_source: cv-tstc.md
-    cv_target: cv.md
-    notes: Primary instructional-design-manager profile.
-  unitek:
-    label: Unitek
-    cv_source: cv-unitek.md
-    cv_target: cv.md
-    notes: Healthcare / Unitek learning profile.
+profile:
+  label: TSTC
+  cv_source: cv-tstc.md
+  cv_target: cv.md
+  notes: Primary instructional-design-manager profile.

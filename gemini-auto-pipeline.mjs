@@ -107,14 +107,7 @@ function shouldUseHybridBridge(client) {
 }
 
 function inferProfileMode(text = '', url = '') {
-  const blob = String(`${text}\n${url}`).toLowerCase();
-  let tstc = 0;
-  let unitek = 0;
-  if (/\b(manager|director|operations|portfolio|agile)\b/.test(blob)) tstc += 2;
-  if (/\b(community college|technical college|workforce)\b/.test(blob)) tstc += 2;
-  if (/\b(healthcare|nursing|bsn|adn|lvn|higher education|curriculum committee)\b/.test(blob)) unitek += 3;
-  if (/\b(syllabus|learning outcomes|assessments?|lms)\b/.test(blob)) unitek += 2;
-  return unitek > tstc ? 'unitek' : 'tstc';
+  return 'tstc';
 }
 
 function isLikelyWorkdayUrl(url = '') {
@@ -503,8 +496,8 @@ function buildHybridBridgePayload(args, extracted, tmpFile, sourceKind, sourceUr
     extraction_fallback: extracted?.fallback || null,
     work_arrangement: extracted?.fallback?.workArrangement || inferWorkArrangementFromText(extracted?.text || ''),
     location_signal: extracted?.fallback?.jobRequisitionLocationDescriptor || null,
-    recommended_profile_mode: recommendedProfileMode,
-    recommended_cv_source: recommendedProfileMode === 'unitek' ? 'cv-unitek.md' : 'cv-tstc.md',
+    profile_mode: 'tstc',
+    recommended_cv_source: 'cv-tstc.md',
     next_step: args.withPackage
       ? 'Use the extracted posting to evaluate in conversation, persist with record_evaluation, then build the package through the hybrid package flow.'
       : 'Use the extracted posting to evaluate in conversation, then persist the result with record_evaluation.',

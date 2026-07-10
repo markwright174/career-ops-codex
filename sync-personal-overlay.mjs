@@ -22,7 +22,6 @@ const OVERLAY_EXAMPLE_PATH = join(LOCAL_DIR, 'personal-overlay.example.yml');
 
 function parseArgs(argv) {
   const args = {
-    profile: null,
     dryRun: false,
     list: false,
   };
@@ -33,11 +32,6 @@ function parseArgs(argv) {
       args.dryRun = true;
     } else if (value === '--list') {
       args.list = true;
-    } else if (value === '--profile') {
-      args.profile = argv[i + 1] || null;
-      i += 1;
-    } else if (value.startsWith('--profile=')) {
-      args.profile = value.slice('--profile='.length) || null;
     }
   }
 
@@ -101,18 +95,13 @@ function copyManagedFile(relativeSource, relativeTarget, dryRun, label) {
   console.log(`Copied ${label}: ${relativeSource} -> ${relativeTarget}`);
 }
 
-function selectProfile(data, requestedProfile) {
-  const profiles = data.profiles || {};
-  const active = requestedProfile || data.active_profile;
-  if (!active) {
-    throw new Error('No active profile selected. Set active_profile in local/personal-overlay.yml.');
+function selectProfile(data) {
+  const profile = data.profile || data.profiles?.tstc;
+  const active = data.active_profile || 'tstc';
+  if (!profile) {
+    throw new Error('No profile selected. Set profile in local/personal-overlay.yml.');
   }
-  if (!profiles[active]) {
-    throw new Error(
-      `Unknown profile "${active}". Available profiles: ${Object.keys(profiles).join(', ') || 'none'}`
-    );
-  }
-  return { name: active, profile: profiles[active] };
+  return { name: active, profile };
 }
 
 function main() {
@@ -120,18 +109,14 @@ function main() {
   const overlay = loadOverlay();
 
   if (args.list) {
-    const profiles = overlay.data.profiles || {};
     console.log(`Overlay source: ${overlay.sourcePath}`);
     console.log(`Active profile: ${overlay.data.active_profile || '(none)'}`);
-    for (const [name, profile] of Object.entries(profiles)) {
-      const marker = name === overlay.data.active_profile ? '*' : ' ';
-      const label = profile.label || name;
-      console.log(`${marker} ${name}: ${label}`);
-    }
+    const profile = overlay.data.profile || overlay.data.profiles?.tstc;
+    console.log(`Profile: ${profile?.label || 'tstc'}`);
     return;
   }
 
-  const { name, profile } = selectProfile(overlay.data, args.profile);
+  const { name, profile } = selectProfile(overlay.data);
   const cvSource = profile.cv_source;
   const cvTarget = profile.cv_target || 'cv.md';
 

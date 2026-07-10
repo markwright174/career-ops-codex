@@ -3,14 +3,14 @@
 import http from 'http';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { ROOT, logAction, runNodeScript } from './repo-ops-lib.mjs';
+import { ROOT, logAction, runNodeScript } from '../repo-ops-lib.mjs';
 import {
   buildAuthChallengeHeaders,
   buildOAuthConfig,
   buildProtectedResourceMetadata,
   getBearerToken,
   validateAccessToken,
-} from './mcp-oauth.mjs';
+} from './oauth.mjs';
 
 const HOST = process.env.CAREER_OPS_MCP_HOST || '127.0.0.1';
 const PORT = parseInt(process.env.CAREER_OPS_MCP_PORT || '8790', 10);
@@ -554,12 +554,14 @@ const TOOLS = [
     name: 'prepare_package',
     title: 'Prepare Package',
     kind: 'write',
-    description: 'Generate a tailored CV and cover letter package either from Chat-authored structured content (hybrid mode) or from the legacy Gemini-backed JD flow.',
+    description: 'Generate a tailored CV and cover letter package either from Chat-authored structured content (hybrid mode) or from the legacy Gemini-backed JD flow. Package responses include a quality gate and completion status so Chat can tell built from ready.',
     inputSchema: objectSchema({
+      auto_draft: { type: 'boolean', description: 'Let the repo draft builder-ready brief and letter JSON from the active TSTC lane before validating and building the package.' },
       brief: { type: 'object', description: 'Structured CV brief JSON for hybrid mode. Matches build-tailored-cv.mjs input.' },
       letter: { type: 'object', description: 'Structured cover-letter JSON for hybrid mode. Matches build-cover-letter.mjs input.' },
       brief_file: { type: 'string', description: 'Repo-relative or absolute path to a JSON file containing the structured CV brief.' },
       letter_file: { type: 'string', description: 'Repo-relative or absolute path to a JSON file containing the structured cover-letter payload.' },
+      chat_verified: { type: 'boolean', description: 'Mark the package as reviewed by Chat after a human-quality pass.' },
       jd_file: { type: 'string', description: 'Absolute or repo-relative path to a JD text file.' },
       text: { type: 'string', description: 'Raw job description text.' },
       report: { type: 'string', description: 'Path to a saved report markdown file.' },
@@ -587,7 +589,7 @@ const TOOLS = [
     name: 'build_package_from_json',
     title: 'Build Package From JSON',
     kind: 'write',
-    description: 'Hybrid package flow: accept builder-ready CV brief JSON and cover-letter JSON, then build HTML/PDF artifacts without using Gemini. Do not send planning notes or strategy metadata in place of the required render fields.',
+    description: 'Hybrid package flow: accept builder-ready CV brief JSON and cover-letter JSON, then build HTML/PDF artifacts without using Gemini. Do not send planning notes or strategy metadata in place of the required render fields. Package responses include a quality gate and completion status so callers can tell built from ready.',
     inputSchema: objectSchema({
       brief: {
         type: 'object',
@@ -597,6 +599,7 @@ const TOOLS = [
         type: 'string',
         description: 'Repo-relative or absolute path to a JSON file containing the builder-ready CV brief.',
       },
+      chat_verified: { type: 'boolean', description: 'Mark the package as reviewed by Chat after a human-quality pass.' },
       letter: {
         type: 'object',
         description: 'Builder-ready cover-letter JSON. Must include recipient_lines, greeting, paragraphs, and closing.',
@@ -605,6 +608,7 @@ const TOOLS = [
         type: 'string',
         description: 'Repo-relative or absolute path to a JSON file containing the builder-ready cover-letter payload.',
       },
+      chat_verified: { type: 'boolean', description: 'Mark the package as reviewed by Chat after a human-quality pass.' },
       company: { type: 'string', description: 'Company name.' },
       role: { type: 'string', description: 'Role title.' },
       report: { type: 'string', description: 'Optional path to a saved report markdown file.' },
@@ -630,11 +634,11 @@ const TOOLS = [
     name: 'build_quality_package_for_row',
     title: 'Build Quality Package For Row',
     kind: 'write',
-    description: 'Row-aware package workflow. First call with num only to get tracker/report/CV/profile context plus built-in quality rules. Then either pass builder-ready brief and letter JSON, or set profile_mode plus auto_draft=true to let the repo draft the package from the selected TSTC/Unitek lane.',
+    description: 'Row-aware package workflow. First call with num only to get tracker/report/CV/profile context plus built-in quality rules. Then either pass builder-ready brief and letter JSON, or set auto_draft=true to let the repo draft the package from the active TSTC lane. The result includes a quality gate and completion status so Chat can distinguish built from ready.',
     inputSchema: objectSchema({
       num: { type: 'number', minimum: 1, description: 'Existing tracker row number.' },
-      profile_mode: { type: 'string', enum: ['tstc', 'unitek'], description: 'Explicitly choose which personal profile lane to use when auto-drafting or building the package.' },
-      auto_draft: { type: 'boolean', description: 'Let the repo draft builder-ready brief and letter JSON from the selected lane before validating and building the package.' },
+      auto_draft: { type: 'boolean', description: 'Let the repo draft builder-ready brief and letter JSON from the active TSTC lane before validating and building the package.' },
+      chat_verified: { type: 'boolean', description: 'Mark the package as reviewed by Chat after a human-quality pass.' },
       brief: {
         type: 'object',
         description: 'Builder-ready CV brief JSON. Optional on the first context call; required on the build call.',

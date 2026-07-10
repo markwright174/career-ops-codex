@@ -145,7 +145,9 @@ Example flags:
 ### `package`
 
 Generates tailored CV + cover letter package from a JD and optional report
-context.
+context. Package responses now include `quality_gate` and `completion_status`,
+so callers should treat `ok: true` as "built" and `completion_status: complete`
+as the actual finish line.
 
 Example flags:
 
