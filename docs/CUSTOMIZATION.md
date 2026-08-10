@@ -9,7 +9,8 @@ Key sections:
 - **target_roles**: Your North Star roles and archetypes
 - **narrative**: Your headline, exit story, superpowers, proof points
 - **compensation**: Target range, minimum, currency
-- **location**: Country, timezone, visa status, on-site availability
+- **location**: Country, timezone, visa status, on-site availability, and structured work authorization (`authorized_in`, `needs_sponsorship`) that drives the Work-Auth signal in job evaluation (flags an explicit no-sponsorship JD as a hard blocker)
+- **culture_screen**: Structural criteria for team culture (the `deprioritize_if_absent` strict flag caps the culture score at 2/5 if evidence is entirely missing)
 
 ## Target Roles (modes/_profile.md)
 
@@ -42,20 +43,6 @@ The HTML template uses these design tokens:
 
 To customize fonts/colors, edit the CSS in the template. Update font files in `fonts/` if switching fonts.
 
-## Personal Overlay Switcher
-
-If you want to keep the active resume files easy to refresh, use the local
-overlay instead of editing them by hand:
-
-1. Edit `local/personal-overlay.yml`
-2. Keep the single active profile set to `tstc`
-3. Run `npm run personal:sync`
-
-The helper currently renders `cv.md` from `cv-tstc.md`. It can also render
-`config/profile.yml`, `modes/_profile.md`, and `article-digest.md` if those
-blocks are added to the overlay later. Chat can read and write the local
-overlay file directly, and Git ignores it.
-
 ## Negotiation Scripts (modes/_shared.md)
 
 The negotiation section provides frameworks for salary discussions. Replace the example scripts with your own:
@@ -80,7 +67,7 @@ Career-ops can integrate with external systems via Claude Code hooks. Example ho
 }
 ```
 
-Save hooks in `.claude/settings.json`.
+Save hooks in `.claude/settings.json` (Claude Code). OpenCode does not support hooks. For equivalent functionality, use custom commands (`.opencode/commands/`) or agents (`.opencode/agents/`) — see https://opencode.ai/docs/commands/.
 
 ## States (templates/states.yml)
 
