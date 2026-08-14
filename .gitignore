@@ -19,8 +19,11 @@ jds/*
 config/profile.yml
 portals.yml
 modes/_profile.md
+modes/_custom.md
+modes/_brief.md
 local/personal-overlay.yml
 local/mcp-oauth-local.ps1
+voice-dna.md
 .update-dismissed
 .update-lock
 
@@ -30,6 +33,7 @@ node_modules/
 .env
 .env.local
 data/chat-actions.ndjson
+data/pdf-index.tsv
 cv.md
 tmp_*.html
 
