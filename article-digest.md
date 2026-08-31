@@ -1,49 +1,128 @@
 # Article Digest / Proof Points
 
+_Lightly cleaned on 2026-08-10. No new claims added._
+
+This file is a compact proof-point bank for evaluations, resumes, cover letters, and application answers. Use it with `cv.md`, `config/profile.yml`, and `modes/_profile.md`. Do not treat it as a source for claims beyond what is stated here.
+
 ## AI-Supported Learning Workflow
 
-Mark uses AI tools lightly and pragmatically in learning and instructional design work. Primary tool is ChatGPT, with occasional use of Gemini and Copilot.
+Mark uses AI tools lightly and pragmatically in learning and instructional design work.
 
-Supported use cases:
-- Generating assessments and exam variations.
-- Drafting and reviewing curriculum structures.
-- Developing course outcomes and student learning objectives.
-- Creating case studies and scenario-based learning materials.
-- Supporting strategic planning and pattern seeking.
+Confirmed tools:
+- Primary: ChatGPT.
+- Occasional: Gemini and Copilot.
+
+Supported uses:
+- Assessment and exam-variation generation.
+- Curriculum structure drafting and review.
+- Course outcomes and student learning objectives.
+- Case studies and scenario-based learning materials.
+- Strategic planning and pattern seeking.
 - Copyediting learning content and professional materials.
-- Analyzing outcome data to identify patterns and improvement opportunities.
+- Outcome-data analysis to identify patterns and improvement opportunities.
 
-Facilitation / enablement evidence:
+Enablement evidence:
 - Has introduced or supported AI-tool use with his own staff.
 - Has included AI-tool guidance in faculty training contexts.
 
+Safe framing:
+- AI-supported instructional design.
+- AI-supported curriculum development and review.
+- AI-supported assessment generation, content refinement, and learning-data analysis.
+
+Do not claim:
+- Formal enterprise AI enablement ownership.
+- Dedicated AI-product training.
+- Legal AI, cloud-security AI, or cybersecurity AI training.
+
 ## Healthcare Education Domain
 
-- Mark's recent healthcare education work focused on undergraduate medical education-aligned nursing pathways (LVN, ADN, BSN), including design for clinical and lab learning experiences.
-- That work built direct familiarity with healthcare education expectations, regulated instructional environments, and the operational realities of program maintenance across complex learning tracks.
-- He worked directly with Deans and program directors on curriculum design and implementation decisions.
-- He supported accreditation-related curriculum and program documentation work across California, New Mexico, Arizona, Utah, and Idaho, with ongoing accreditation work in New Hampshire.
+Supported evidence:
+- Recent healthcare education work focused on undergraduate medical education-aligned nursing pathways: LVN, ADN, and BSN.
+- Designed for clinical and lab learning experiences.
+- Worked directly with Deans and program directors on curriculum design and implementation decisions.
+- Supported accreditation-related curriculum and program documentation work across California, New Mexico, Arizona, Utah, and Idaho, with ongoing accreditation work in New Hampshire.
 
-## Confirmed Tool Additions
+Safe framing:
+- Healthcare education domain familiarity.
+- Regulated instructional environments.
+- Complex learning-track maintenance.
+- Curriculum design and implementation support for nursing education.
 
-- Intermediate experience with Adobe Captivate.
+Do not claim:
+- Clinical practice ownership.
+- Direct pharma commercial training.
+- Biotech or product-launch training experience.
+
+## Learning Products and Educator Enablement
+
+Strongest proof point:
+- UTeach Computer Science contract work: platform migration, accessibility updates, learner experience design consultation, and implementation for a public-facing educator audience.
+
+Safe framing:
+- Learning-product-adjacent work.
+- Educator-facing platform support.
+- Professional learning and rollout support.
+- Learning experience design for a technical learning environment.
+
+Do not claim:
+- Software product management ownership.
+- Coding ownership.
+- General-purpose SaaS product leadership.
+- Direct B2B SaaS customer education ownership unless otherwise supported by a specific role or project.
+
+## Learning Technology and Tools
+
+Confirmed authoring and creative tools:
+- Articulate Storyline.
+- Articulate Rise.
+- Adobe Captivate.
+- Adobe Creative Cloud.
+
+Confirmed learning platforms:
+- D2L Brightspace.
+- Blackboard.
+- Canvas.
+- Codio.
+
+Confirmed standards and practices:
 - Working knowledge of xAPI and Tin Can API through recent professional development.
-- UTeach contract work is strong evidence for learning-product and educator-enablement framing: platform migration, accessibility updates, and learner experience design consultation for a public-facing educator audience.
-- TSTC is a Google Workspace organization, so current day-to-day business work includes Google Workspace tools such as Docs, Sheets, Slides, and Meet.
-- Confirmed personal or professional familiarity with password management tools, secure sign-in practices, Microsoft tools, and Slack.
 
-Evidence boundaries:
-- Do not overstate this as formal enterprise AI enablement ownership.
-- Do not claim legal AI, cloud-security AI, or dedicated AI-product training unless confirmed later.
-- Do not overstate xAPI / Tin Can as deep implementation architecture or advanced LRS engineering ownership.
-- Best framing: AI-supported instructional design, curriculum development, assessment generation, content review, and learning-data analysis.
-- Best framing for learning products: educator-facing platform work, professional learning, launch support, and learning experience design rather than software product management.
+Confirmed workplace and collaboration tools:
+- Google Workspace, including Docs, Sheets, Slides, and Meet, through current TSTC day-to-day business use.
+- Microsoft tools.
+- Slack.
+- Password management tools and secure sign-in practices.
 
-## K-12, ELA, Dual-Language, and Adult Teaching Background
+Safe framing:
+- LMS-supported delivery and support.
+- Learning-platform migration and administration.
+- Accessibility and universal design.
+- Capable of understanding and using xAPI / Tin Can concepts in learning-design contexts.
 
+Do not claim:
+- Advanced LRS engineering.
+- Deep xAPI implementation architecture.
+- Long-term production ownership of xAPI systems.
+- Specific tools such as Camtasia, Synthesia, Skilljar, Docebo, or LCvista unless separately confirmed.
+
+## K-12, ELA, Dual-Language, and Adult Teaching
+
+Supported evidence:
 - Oxford TEFL certified teacher.
-- Taught for three years in Prague, including adult learners and PreK-3 learners, with ELA instruction while living overseas.
-- Taught K-3 dual-language learners for three years in Houston ISD.
-- Directed a K-12 after-school tutoring program.
-- Safe framing: strong educator credibility for K-12 curriculum, ELA-adjacent curriculum work, professional learning, teacher support, dual-language learner awareness, and adult-learning facilitation.
-- Boundary: do not overstate this as dedicated K-8 ELA product ownership, formal ELD/TESOL curriculum ownership, or district-wide curriculum leadership unless confirmed later.
+- Three years teaching in Prague, including adult learners and PreK-3 learners.
+- ELA instruction while living overseas.
+- Three years teaching K-3 dual-language learners in Houston ISD.
+- Director of a K-12 after-school tutoring program.
+
+Safe framing:
+- Real K-12 classroom experience.
+- Dual-language learner experience.
+- Overseas ELA teaching experience.
+- Adult-learning facilitation.
+- Educator empathy and credibility for educator-facing curriculum, professional learning, and implementation support.
+
+Do not claim:
+- Formal district-wide K-12 curriculum ownership.
+- Dedicated ELD/TESOL curriculum-product ownership.
+- Long-term K-12 ELA product-management experience.

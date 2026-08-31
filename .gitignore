@@ -1,8 +1,11 @@
 # Personal data (user fills these)
 data/applications.md
 data/pipeline.md
+data/follow-ups.md
+data/status-log.tsv
 data/scan-history.tsv
 reports/*.md
+archive/reports/*.md
 !reports/.gitkeep
 output/*
 !output/.gitkeep
