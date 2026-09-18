@@ -62,3 +62,11 @@ doc and summarize it here.
 - **Reason:** Mark wants agents to avoid repeatedly relying on slow or partially synced Google Drive files for routine instruction/context loading, while preserving the privacy boundary for candidate and application data.
 - **Files:** `docs/LOCAL_SYSTEM_CHANGE_LOG.md`, `docs/DRIVE_GITHUB_WORKFLOW.md`, `modes/_custom.md`
 - **Backout:** Revert the GitHub-first wording in `docs/DRIVE_GITHUB_WORKFLOW.md` and remove or revise this entry.
+
+### 2026-09-18 - Repair Fork GitHub Actions Hygiene
+
+- **Type:** update-safety, config, structure
+- **Changed:** Converted tracked skill entrypoint files from malformed symlink entries to regular files, added fork-appropriate Release Please configuration, added `.release-please-manifest.json`, and removed ignored Google Drive `desktop.ini` metadata files from the workspace and `.git` internals.
+- **Reason:** GitHub Actions failed after a documentation push because Linux checkout could not materialize malformed skill symlinks and Release Please had a workflow without its required manifest/config files. Google Drive metadata files also caused local Git tag warnings and broke test fixture copying.
+- **Files:** `.antigravitycli/skills/career-ops/SKILL.md`, `.claude/skills/career-ops/SKILL.md`, `.cursor/skills/career-ops/SKILL.md`, `.grok/skills/career-ops/SKILL.md`, `.kimi/skills/career-ops/SKILL.md`, `.opencode/skills/career-ops/SKILL.md`, `.qwen/skills/career-ops/SKILL.md`, `release-please-config.json`, `.release-please-manifest.json`, `docs/LOCAL_SYSTEM_CHANGE_LOG.md`
+- **Backout:** Restore the prior symlink entries and remove the release config/manifest, though that will reintroduce the observed checkout and Release Please failures.
