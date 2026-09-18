@@ -51,6 +51,12 @@ Before doing broad file discovery in a Google Drive-backed workspace:
 5. Do not copy private/source material into tracked docs.
 6. Commit only curated, non-sensitive files.
 
+## Local Runtime Clone
+
+Prefer running scripts and installing dependencies from `C:\Users\dntpa\career-ops-runtime`. That clone keeps code and `node_modules` on local disk, with a local-only `.career-ops-data` marker pointing back to the Drive-backed career-ops folder for private user data.
+
+The Drive-backed checkout remains the private data workspace and can still be used for files that intentionally live there. Avoid installing or repairing `node_modules` inside the Drive checkout unless the runtime clone is unavailable.
+
 ## Default Operating Boundary
 
 For routine career-ops work, operate from the GitHub repo and its tracked text
