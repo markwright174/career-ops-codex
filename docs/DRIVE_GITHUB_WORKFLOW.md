@@ -1,6 +1,6 @@
 # Google Drive and GitHub Working-Memory Workflow
 
-Use GitHub as the main working-memory layer for stable, non-sensitive, curated project knowledge. Use the local Google Drive workspace for private/source storage, generated artifacts, and materials that should stay gitignored.
+Use GitHub as the main working-memory and repo-communication layer for stable, non-sensitive, curated project knowledge. Use the local Google Drive workspace for profile data, application artifacts, private/source storage, generated artifacts, and materials that should stay gitignored.
 
 This keeps routine agent work fast and predictable while preserving the privacy boundary that career-ops depends on.
 
@@ -50,6 +50,19 @@ Before doing broad file discovery in a Google Drive-backed workspace:
 4. When a private source is useful long-term, create or update a tracked safe summary instead of tracking the source.
 5. Do not copy private/source material into tracked docs.
 6. Commit only curated, non-sensitive files.
+
+## Default Operating Boundary
+
+For routine career-ops work, operate from the GitHub repo and its tracked text
+files first. Treat tracked docs, scripts, templates, and safe indexes as the
+normal instruction and coordination layer.
+
+Use Google Drive-backed or gitignored files only when the task requires private
+candidate data, application records, generated artifacts, raw source materials,
+or other sensitive inputs. Do not broaden Drive searches just to recover
+instructions that should be stored in the repo.
+
+Record retained operational changes in `docs/LOCAL_SYSTEM_CHANGE_LOG.md`.
 
 When working with career-ops specifically:
 
